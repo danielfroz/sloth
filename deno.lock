@@ -145,6 +145,7 @@
       },
       "oak": {
         "dependencies": [
+          "jsr:@danielfroz/sloth@*",
           "jsr:@oak/oak@^17.1.0"
         ]
       }
