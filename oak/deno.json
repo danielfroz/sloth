@@ -5,7 +5,7 @@
     ".": "./mod.ts"
   },
   "imports": {
-    "@danielfroz/slothcore": "jsr:@danielfroz/sloth",
+    "@danielfroz/slothcore": "jsr:@danielfroz/sloth@^0.1.0",
     "@oak/oak": "jsr:@oak/oak@^17.1.0"
   },
   "lint": {
