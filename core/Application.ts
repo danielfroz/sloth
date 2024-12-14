@@ -17,24 +17,25 @@ export class Application {
     this.framework = props.framework
   }
 
-  container() {
+  container(): any {
     return this.framework.container()
   }
 
-  addController(ctrl: Controller) {
+  addController(ctrl: Controller): Application {
     this.#controllers.push(ctrl)
     return this;
   }
 
-  injectClass<T extends object>(token: Token<T>, clazz: Constructor<T>) {
+  injectClass<T extends object>(token: Token<T>, clazz: Constructor<T>): Application {
     container.register<T>(token, { useClass: clazz }, {
       scope: Scope.Transient
     })
     return this;
   }
 
-  injectValue<T extends object>(token: Token<T>, value: T) {
+  injectValue<T extends object>(token: Token<T>, value: T): Application {
     container.register<T>(token, { useValue: value })
+    return this
   }
 
   async start(args: { port: number }): Promise<void> {

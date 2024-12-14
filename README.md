@@ -11,3 +11,9 @@ APIs with various languages.
 
 IN order to use this project, check the examples/oak directory. This is code
 base shows you the implementation of API service using Sloth.
+
+# Warning
+
+Please notice that we're still working to validate this code and project.
+Therefore the interfaces and object contracts will certainly change. I will
+upgrade this package to release 1.0 once we have it stable

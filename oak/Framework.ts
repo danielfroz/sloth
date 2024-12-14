@@ -6,7 +6,7 @@ export class OakFramework implements Framework<Application> {
   private readonly log = new Log({ prefix: { mod: '@danielfroz/sloth/oak' }})
   private readonly application = new Application()
 
-  container() {
+  container(): Application {
     return this.application
   }
 
