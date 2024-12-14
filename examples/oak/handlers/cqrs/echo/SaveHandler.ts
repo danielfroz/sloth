@@ -1,6 +1,6 @@
 import { EchoSaveCommand, EchoSaveCommandResult } from "@/handlers/cqrs/echo/index.ts";
 import { Types } from '@/types.ts';
-import { CommandHandler, Errors } from "@danielfroz/slothcore";
+import { CommandHandler, Errors } from "@danielfroz/sloth";
 import { inject } from "@exuanbo/di-wise";
 
 export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSaveCommandResult> {

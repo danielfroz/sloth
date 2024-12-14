@@ -1,6 +1,6 @@
 import { EchoGetQuery, EchoGetQueryResult } from "@/models/cqrs/echo/index.ts"
 import { Types } from "@/types.ts"
-import { Errors, QueryHandler } from "@danielfroz/slothcore"
+import { Errors, QueryHandler } from "@danielfroz/sloth"
 import { inject } from "@exuanbo/di-wise"
 
 export class EchoGetHandler implements QueryHandler<EchoGetQuery, EchoGetQueryResult> {

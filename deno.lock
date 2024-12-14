@@ -137,6 +137,8 @@
     "members": {
       "examples/oak": {
         "dependencies": [
+          "jsr:@danielfroz/sloth@0.1",
+          "jsr:@danielfroz/slothoak@0.1",
           "jsr:@exuanbo/di-wise@~0.2.8",
           "jsr:@oak/oak@^17.1.0",
           "jsr:@std/assert@1.0.9",
@@ -145,7 +147,7 @@
       },
       "oak": {
         "dependencies": [
-          "jsr:@danielfroz/sloth@*",
+          "jsr:@danielfroz/sloth@0.1",
           "jsr:@oak/oak@^17.1.0"
         ]
       }

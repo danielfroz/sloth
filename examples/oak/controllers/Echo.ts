@@ -1,5 +1,5 @@
 import { EchoGetHandler, EchoSaveHandler } from "@/handlers/cqrs/echo/index.ts";
-import { Controller } from "@danielfroz/slothcore";
+import { Controller } from "@danielfroz/sloth";
 
 export const EchoController = new Controller('/echo')
   .add({

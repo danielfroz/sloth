@@ -1,4 +1,4 @@
-import { container } from "@danielfroz/slothcore";
+import { container } from "@danielfroz/sloth";
 import { EchoMem } from "../repositories/mem/index.ts";
 import { Types } from "../types.ts";
 

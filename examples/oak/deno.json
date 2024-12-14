@@ -1,8 +1,8 @@
 {
   "imports": {
     "@/": "./",
-    "@danielfroz/slothcore": "../../core/mod.ts",
-    "@danielfroz/slothoak": "../../oak/mod.ts",
+    "@danielfroz/sloth": "jsr:@danielfroz/sloth@^0.1.0",
+    "@danielfroz/slothoak": "jsr:@danielfroz/slothoak@^0.1.0",
     "@exuanbo/di-wise": "jsr:@exuanbo/di-wise@^0.2.8",
     "@oak/oak": "jsr:@oak/oak@^17.1.0",
     "@std/assert": "jsr:@std/assert@1.0.9",
