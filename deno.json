@@ -13,7 +13,7 @@
     "strict": true
   },
   "tasks": {
-    "dev:oak": "deno run -A --watch examples/oak/main.ts"
+    "dev:oak": "deno run -A --watch examples/oak/src/main.ts"
   },
   "exclude": [
     ".git",

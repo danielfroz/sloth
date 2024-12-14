@@ -1,4 +1,7 @@
-import { Echo, EchoRepository, EchoSaveCommand, EchoSaveHandler } from "@/models/index.ts";
+import { EchoSaveHandler } from "@/handlers/cqrs/echo/index.ts";
+import { EchoSaveCommand } from '@/models/cqrs/echo/index.ts';
+import { Echo } from '@/models/dtos/index.ts';
+import { EchoRepository } from '@/repositories/index.ts';
 import { assert } from "@std/assert/assert";
 import { beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
@@ -27,7 +30,12 @@ describe('EchoSaveHandler', () => {
     } as EchoSaveCommand
     const res = await handler.handle(cmd)
     assert(res != null)
-    assert(res.response != null)
-    assert(res.response === 'Hello world', `expected Hello world but got ${res.response}`)
+    assert(res.echo != null)
+    assert(res.echo.id === id)
+    assert(res.echo.text === 'Hello world', `expected Hello world but got ${res.echo.text}`)
+
+    // check the database
+    const echo = echoDb.get(id)
+    assert(echo != null, `expected echo not be null`)
   })
 })

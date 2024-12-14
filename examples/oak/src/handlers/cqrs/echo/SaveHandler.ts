@@ -1,4 +1,4 @@
-import { EchoSaveCommand, EchoSaveCommandResult } from "@/handlers/cqrs/echo/index.ts";
+import { EchoSaveCommand, EchoSaveCommandResult } from "@/models/cqrs/echo/index.ts";
 import { Types } from '@/types.ts';
 import { CommandHandler, Errors } from "@danielfroz/sloth";
 import { inject } from "@exuanbo/di-wise";
