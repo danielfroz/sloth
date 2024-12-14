@@ -1,4 +1,7 @@
 {
+  "name": "@danielfroz/sloth",
+  "version": "0.1.0",
+  "license": "MIT",
   "workspace": [
     "./core",
     "./oak",
