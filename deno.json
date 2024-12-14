@@ -1,0 +1,21 @@
+{
+  "workspace": [
+    "./core",
+    "./oak",
+    "./examples/oak"
+  ],
+  "imports": {
+    "@danielfroz/slog": "jsr:@danielfroz/slog@^0.1.2",
+    "@exuanbo/di-wise": "jsr:@exuanbo/di-wise@^0.2.8"
+  },
+  "compilerOptions": {
+    "strict": true
+  },
+  "tasks": {
+    "dev:oak": "deno run -A --watch examples/oak/main.ts"
+  },
+  "exclude": [
+    ".git",
+    "examples"
+  ]
+}

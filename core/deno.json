@@ -1,0 +1,14 @@
+{
+  "name": "@danielfroz/slothcore",
+  "version": "0.0.1",
+  "description": "Core module for the Sloth framework",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "lint": {
+    "include": [
+      "no-namespace",
+      "no-explicit-any"
+    ]
+  }
+}

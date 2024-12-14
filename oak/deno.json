@@ -1,0 +1,16 @@
+{
+  "name": "@danielfroz/slothoak",
+  "version": "0.1.0",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "imports": {
+    "@danielfroz/slothcore": "../core/mod.ts",
+    "@oak/oak": "jsr:@oak/oak@^17.1.0"
+  },
+  "lint": {
+    "include": [
+      "no-explicit-any"
+    ]
+  }
+}
