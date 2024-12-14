@@ -1,3 +1,3 @@
 #!/bin/sh
 
-deno run "dev:oak"
+deno task dev:oak
