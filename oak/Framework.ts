@@ -1,7 +1,9 @@
+import { Log } from '@danielfroz/slog';
 import { type Base, type Controller, Errors, type Framework, container } from "@danielfroz/slothcore";
 import { Application, type Context, Router } from "@oak/oak";
 
 export class OakFramework implements Framework<Application> {
+  private readonly log = new Log({ prefix: { mod: '@danielfroz/sloth/oak' }})
   private readonly application = new Application()
 
   container() {
@@ -9,6 +11,7 @@ export class OakFramework implements Framework<Application> {
   }
 
   initController(controller: Controller): void {
+    const log = this.log.child({ handler: 'initController' })
     for(const r of controller.routes) {
       const router = new Router();
       const base = controller.base ?
@@ -56,17 +59,12 @@ export class OakFramework implements Framework<Application> {
 
       this.application.use(router.routes())
 
-      console.log(`registered handler ${url} -> ${r.route.handler.name}`)
+      log.debug(`registered handler ${url} -> ${r.route.handler.name}`)
     }
   }
 
   async listen(args?: Framework.Listen): Promise<void> {
     const port = args?.port ?? 80
-    try {
-      await this.application.listen({ port })
-    }
-    catch(err: Error|any) {
-      console.log(`failed to initialize: ${err.message}; port: ${port}`)
-    }
+    await this.application.listen({ port })
   }
 }
