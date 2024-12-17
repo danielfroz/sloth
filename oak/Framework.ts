@@ -1,16 +1,19 @@
 import { Log } from '@danielfroz/slog';
-import { type Base, type Controller, Errors, type Framework, container } from "@danielfroz/slothcore";
+import { type Base, type Controller, Errors, type Framework, container } from "@danielfroz/sloth";
 import { Application, type Context, Router } from "@oak/oak";
 
 export class OakFramework implements Framework<Application> {
-  private readonly log = new Log({ prefix: { mod: '@danielfroz/sloth/oak' }})
+  private readonly log = new Log({ prefix: { mod: '@danielfroz/sloth-oak' }})
   private readonly application = new Application()
 
-  container(): Application {
+  app(): Application {
     return this.application
   }
 
-  initController(controller: Controller): void {
+  /**
+   * Generates controller using Oak.Router
+   */
+  createController(controller: Controller): void {
     const log = this.log.child({ handler: 'initController' })
     for(const r of controller.routes) {
       const router = new Router();
@@ -35,6 +38,7 @@ export class OakFramework implements Framework<Application> {
         }
         catch(error: Error | any) {
           if(error instanceof Errors.ArgumentError) {
+            log.error({ msg: `bad request; error: ${error.message}` })
             ctx.response.status = 400
             ctx.response.body = {
               error: {
@@ -44,12 +48,24 @@ export class OakFramework implements Framework<Application> {
             }
             return
           }
+          else if(error instanceof Errors.ApiError) {
+            log.error({ msg: `api error; url: ${error.url}, status: ${error.status}, error: ${error.message}` })
+            ctx.response.status = error.status,
+            ctx.response.body = {
+              error: {
+                code: 'service.api',
+                message: error.message,
+              }
+            }
+            return
+          }
           else {
+            log.error({ msg: `service.error; ${error.message}` })
             ctx.response.status = 500
             ctx.response.body = {
               error: {
                 code: 'service.error',
-                message: `${error.message ?? ''}`
+                message: `${error}`
               }
             }
             return

@@ -1,10 +1,44 @@
-import { Constructor, Scope, Token } from "@exuanbo/di-wise";
 import { container } from "./Container.ts";
 import { Controller } from './Controller.ts';
 import { type Framework } from "./Framework.ts";
+import { DI } from "./mod.ts";
 
-export interface ApplicationConstructorProps<C extends any> {
-  framework: Framework<any>
+export interface ApplicationConstructorProps<C = any> {
+  framework: Framework<C>
+}
+
+export class ControllerBuilder {
+  constructor(readonly controllers: Array<Controller>) {}
+
+  add(controller: Controller) {
+    return this.push(controller)
+  }
+
+  push(controller: Controller) {
+    this.controllers.push(controller)
+    return this
+  }
+}
+
+export class ServiceBuilder {
+  /**
+   * Injects the class to the DI container; class resolution depends on the Scope.
+   */
+  addClass<T extends object>(token: DI.Token<T>, clazz: DI.Constructor<T>, options?: { scope?: DI.Scope }): ServiceBuilder {
+    container.register<T>(token, { useClass: clazz }, {
+      scope: options?.scope ?? DI.Scope.Singleton
+    })
+    return this
+  }
+
+  /**
+   * Injects the object to the DI container
+   * Note that the value is always registered as Singleton
+   */
+  addValue<T extends object>(token: DI.Token<T>, value: T): ServiceBuilder {
+    container.register<T>(token, { useValue: value })
+    return this
+  }
 }
 
 export class Application {
@@ -17,31 +51,22 @@ export class Application {
     this.framework = props.framework
   }
 
-  container(): any {
-    return this.framework.container()
+  get app(): any {
+    return this.framework.app()
   }
 
-  addController(ctrl: Controller): Application {
-    this.#controllers.push(ctrl)
-    return this;
+  get Controllers() {
+    return new ControllerBuilder(this.#controllers)
   }
-
-  injectClass<T extends object>(token: Token<T>, clazz: Constructor<T>): Application {
-    container.register<T>(token, { useClass: clazz }, {
-      scope: Scope.Transient
-    })
-    return this;
-  }
-
-  injectValue<T extends object>(token: Token<T>, value: T): Application {
-    container.register<T>(token, { useValue: value })
-    return this
+  
+  get Services() {
+    return new ServiceBuilder()
   }
 
   async start(args: { port: number }): Promise<void> {
     // leaving the initialization of the controllers to the last moment...
     for(const c of this.#controllers) {
-      this.framework.initController(c)
+      this.framework.createController(c)
     }
     const port = args?.port ?? 80
     await this.framework.listen({ port })

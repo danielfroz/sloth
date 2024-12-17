@@ -1,0 +1,16 @@
+{
+  "name": "@danielfroz/sloth-express",
+  "version": "0.1.1",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "imports": {
+    "@danielfroz/sloth": "jsr:@danielfroz/sloth@^0.1.1",
+    "express": "npm:express@^4.21.2"
+  },
+  "lint": {
+    "include": [
+      "no-explicit-any"
+    ]
+  }
+}

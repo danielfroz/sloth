@@ -5,7 +5,7 @@ export class ArgumentError extends Error {
 }
 
 export class ApiError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(readonly method: string, readonly url: string, readonly status: number, message: string) {
     super(message)
   }
 }

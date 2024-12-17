@@ -2,12 +2,13 @@
   "license": "MIT",
   "workspace": [
     "./core",
+    "./express",
     "./oak",
+    "./examples/express",
     "./examples/oak"
   ],
   "imports": {
-    "@danielfroz/slog": "jsr:@danielfroz/slog@^0.1.2",
-    "@exuanbo/di-wise": "jsr:@exuanbo/di-wise@^0.2.8"
+    "@danielfroz/slog": "jsr:@danielfroz/slog@^0.1.2"
   },
   "compilerOptions": {
     "strict": true
