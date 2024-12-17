@@ -55,11 +55,11 @@ export class Application {
     return this.framework.app()
   }
 
-  get Controllers() {
+  get Controllers(): ControllerBuilder {
     return new ControllerBuilder(this.#controllers)
   }
   
-  get Services() {
+  get Services(): ServiceBuilder {
     return new ServiceBuilder()
   }
 
