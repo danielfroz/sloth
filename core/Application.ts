@@ -10,11 +10,11 @@ export interface ApplicationConstructorProps<C = any> {
 export class ControllerBuilder {
   constructor(readonly controllers: Array<Controller>) {}
 
-  add(controller: Controller) {
+  add(controller: Controller): ControllerBuilder {
     return this.push(controller)
   }
 
-  push(controller: Controller) {
+  push(controller: Controller): ControllerBuilder {
     this.controllers.push(controller)
     return this
   }
