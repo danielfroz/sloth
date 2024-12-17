@@ -5,9 +5,7 @@ import { CommandHandler, DI, Errors } from "@danielfroz/sloth";
 export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSaveCommandResult> {
   constructor(
     private readonly echoRepo = DI.inject(Types.Repos.Echo)
-  ) {
-    console.log('EchoSaveHandler() called')
-  }
+  ) {}
 
   async handle(cmd: EchoSaveCommand): Promise<EchoSaveCommandResult> {
     if(!cmd)

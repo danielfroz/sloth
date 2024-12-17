@@ -2,7 +2,6 @@ import { app } from "./app.ts";
 import { Controllers, Middleware, Repos } from './inits/index.ts';
 
 try {
-  console.log('initializing...')
   await Repos.init()
   await Middleware.init()
   await Controllers.init()

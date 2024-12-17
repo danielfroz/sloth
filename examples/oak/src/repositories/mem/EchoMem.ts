@@ -4,10 +4,6 @@ import { EchoRepository } from "../index.ts";
 export class EchoMem implements EchoRepository {
   private readonly map = new Map<string, string>()
 
-  constructor() {
-    console.log('EchoMem() called')
-  }
-
   get(id: string): Promise<Echo|undefined> {
     const text = this.map.get(id)
     if(!text)

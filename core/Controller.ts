@@ -21,9 +21,7 @@ export class Controller {
 
   constructor(
     readonly base: string
-  ) {
-    console.log('Controller() created')
-  }
+  ) {}
 
   get routes(): Route[] {
     return this.#routes

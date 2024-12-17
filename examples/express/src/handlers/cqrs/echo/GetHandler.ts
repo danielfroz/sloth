@@ -5,9 +5,7 @@ import { DI, Errors, QueryHandler } from "@danielfroz/sloth"
 export class EchoGetHandler implements QueryHandler<EchoGetQuery, EchoGetQueryResult> {
   constructor(
     private readonly echoRepo = DI.inject(Types.Repos.Echo)
-  ) {
-    console.log('EchoGetHandler() called')
-  }
+  ) {}
 
   async handle(query: EchoGetQuery): Promise<EchoGetQueryResult> {
     if(!query)
