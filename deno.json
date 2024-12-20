@@ -1,23 +1,32 @@
 {
+  "name": "@danielfroz/sloth",
+  "version": "0.1.3",
+  "description": "Core module for the Sloth framework",
   "license": "MIT",
-  "workspace": [
-    "./core",
-    "./express",
-    "./oak",
-    "./examples/express",
-    "./examples/oak"
-  ],
+  "exports": {
+    ".": "./src/mod.ts",
+    "./express": "./src/express/mod.ts",
+    "./oak": "./src/oak/mod.ts"
+  },
   "imports": {
-    "@danielfroz/slog": "jsr:@danielfroz/slog@^0.1.2"
+    "@danielfroz/slog": "jsr:@danielfroz/slog@^0.2.1"
   },
   "compilerOptions": {
     "strict": true
   },
-  "tasks": {
-    "dev:oak": "deno run -A --watch examples/oak/src/main.ts"
+  "lint": {
+    "include": [
+      "no-namespace",
+      "no-explicit-any"
+    ]
   },
-  "exclude": [
-    ".git",
-    "examples"
-  ]
+  "publish": {
+    "exclude": [
+      ".git",
+      ".github",
+      ".vscode",
+      "examples",
+      "**/*.test.ts"
+    ]
+  }
 }

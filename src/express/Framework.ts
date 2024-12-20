@@ -1,81 +1,77 @@
-import { Log } from '@danielfroz/slog';
+import { ConsoleLog } from '@danielfroz/slog';
 import { type Base, type Controller, Errors, type Framework, container } from "@danielfroz/sloth";
-import { Application, type Context, Router } from "@oak/oak";
+import express, { Request, Response } from 'npm:express@4.21.2';
 
-export class OakFramework implements Framework<Application> {
-  private readonly log = new Log({ prefix: { mod: '@danielfroz/sloth-oak' }})
-  private readonly application = new Application()
+export class ExpressFramework implements Framework<express.Application> {
+  private readonly log = new ConsoleLog({ init: { mod: '@danielfroz/sloth/express' }})
+  private readonly application = express()
 
-  app(): Application {
+  constructor() {
+    this.application.use(express.json())
+    this.application.use(express.urlencoded({ extended: true }))
+  }
+
+  app(): express.Application {
     return this.application
   }
 
   /**
-   * Generates controller using Oak.Router
+   * Generates cotnroller using express.Router
    */
   createController(controller: Controller): void {
     const log = this.log.child({ handler: 'initController' })
     for(const r of controller.routes) {
-      const router = new Router();
+      const router = new express.Router();
       const base = controller.base ?
         controller.base.startsWith('/') ? controller.base: `/${controller.base}`:
         ''
       const endpoint = r.route.endpoint ? 
         r.route.endpoint.startsWith('/') ? r.route.endpoint: `/${r.route.endpoint}`:
         '/'
-      const url = `${base}${endpoint}`
-      router.post(url, async (ctx: Context) => {
+      const url = endpoint
+      router.post(url, async (preq: Request, pres: Response) => {
         try {
           const h = container.resolve(r.type)
           if(!h) {
             throw new Error(`handler not resolved with type: ${r.type}`)
           }
-          const req = await ctx.request.body.json() as Base
+          const req = preq.body as Base
           const res = await h.handle(req)
-          ctx.response.status = 200
-          ctx.response.body = res
-          return
+          return await pres.status(200).json(res)
         }
         catch(error: Error | any) {
           if(error instanceof Errors.ArgumentError) {
             log.error({ msg: `bad request; error: ${error.message}` })
-            ctx.response.status = 400
-            ctx.response.body = {
+            return await pres.status(400).json({
               error: {
                 code: 'badrequest',
                 message: error.message
               }
-            }
-            return
+            })
           }
           else if(error instanceof Errors.ApiError) {
             log.error({ msg: `api error; url: ${error.url}, status: ${error.status}, error: ${error.message}` })
-            ctx.response.status = error.status,
-            ctx.response.body = {
+            return await pres.status(error.status).json({
               error: {
-                code: 'service.api',
+                code: 'api.service',
                 message: error.message,
               }
-            }
-            return
+            })
           }
           else {
             log.error({ msg: `service.error; ${error.message}` })
-            ctx.response.status = 500
-            ctx.response.body = {
+            return await pres.status(500).json({
               error: {
                 code: 'service.error',
                 message: `${error}`
               }
-            }
-            return
+            })
           }
         }
       })
 
-      this.application.use(router.routes())
-
-      log.debug(`registered handler ${url} -> ${r.route.handler.name}`)
+      this.application.use(base, router)
+      log.debug(`registered handler ${base}${url} -> ${r.route.handler.name}`)
     }
   }
 
