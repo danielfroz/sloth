@@ -2,12 +2,23 @@
   "version": "4",
   "specifiers": {
     "jsr:@danielfroz/slog@0.2.1": "0.2.1",
+    "jsr:@danielfroz/slog@~0.2.1": "0.2.1",
+    "jsr:@danielfroz/sloth@*": "0.1.3",
+    "jsr:@danielfroz/sloth@~0.1.3": "0.1.3",
     "npm:express@4.21.2": "4.21.2",
     "npm:express@^4.21.2": "4.21.2"
   },
   "jsr": {
     "@danielfroz/slog@0.2.1": {
       "integrity": "78fceb410c21c5b67c92f3df23614247c60d872ff283e3f80239d5ea83a52475"
+    },
+    "@danielfroz/sloth@0.1.3": {
+      "integrity": "345a259f3f7c62b462895831450849e92301a7f1a7b9595836c9f6712d1fa606",
+      "dependencies": [
+        "jsr:@danielfroz/slog@~0.2.1",
+        "jsr:@danielfroz/sloth@~0.1.3",
+        "npm:express@4.21.2"
+      ]
     }
   },
   "npm": {
@@ -394,6 +405,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@danielfroz/slog@0.2.1",
+      "jsr:@danielfroz/sloth@*",
       "jsr:@std/assert@1.0.9",
       "jsr:@std/testing@1.0.6",
       "npm:express@^4.21.2"
