@@ -16,8 +16,8 @@ export interface ApiPostOptions extends ApiGetOptions {
 
 export interface Api {
   init(options?: ApiInitOptions): Api
-  get<R extends object>(options: ApiGetOptions): Promise<R | undefined>
-  post<R extends object>(options: ApiPostOptions): Promise<R | undefined>
+  get<R extends object>(options: ApiGetOptions): Promise<R>
+  post<R extends object>(options: ApiPostOptions): Promise<R>
 }
 
 export class ApiFetch implements Api {
@@ -32,7 +32,7 @@ export class ApiFetch implements Api {
     return this
   }
 
-  get<R extends object>(options: ApiGetOptions): Promise<R | undefined> {
+  get<R extends object>(options: ApiGetOptions): Promise<R> {
     return new Promise((resolve, reject) => {
       if(!options.url)
         throw new Errors.ArgumentError('url')
@@ -61,7 +61,7 @@ export class ApiFetch implements Api {
     })
   }
 
-  post<R extends object>(options: ApiPostOptions): Promise<R | undefined> {
+  post<R extends object>(options: ApiPostOptions): Promise<R> {
     return new Promise((resolve, reject) => {
       if(!options.url)
         throw new Errors.ArgumentError('url')

@@ -59,6 +59,28 @@ export class OakFramework implements Framework<Application> {
             }
             return
           }
+          else if(error instanceof Errors.AuthError) {
+            log.error({ msg: `auth error; unauthorized, code: ${error.code}, error: ${error.description}` })
+            ctx.response.status = 401,
+            ctx.response.body = {
+              error: {
+                code: 'unauthorized',
+                message: error.message,
+              }
+            }
+            return
+          }
+          else if(error instanceof Errors.CodeDescriptionError) {
+            log.error({ msg: `service error; unauthorized, code: ${error.code}, error: ${error.description}` })
+            ctx.response.status = 500,
+            ctx.response.body = {
+              error: {
+                code: error.code,
+                message: error.message,
+              }
+            }
+            return
+          }
           else {
             log.error({ msg: `service.error; ${error.message}` })
             ctx.response.status = 500

@@ -58,6 +58,26 @@ export class ExpressFramework implements Framework<express.Application> {
               }
             })
           }
+          else if(error instanceof Errors.AuthError) {
+            log.error({ msg: `auth error; unauthorized, code: ${error.code}, error: ${error.description}` })
+            return await pres.status(401).json({
+              error: {
+                code: 'unauthorized',
+                message: error.message,
+              }
+            })
+            return
+          }
+          else if(error instanceof Errors.CodeDescriptionError) {
+            log.error({ msg: `service error; unauthorized, code: ${error.code}, error: ${error.description}` })
+            return await pres.status(500).json({
+              error: {
+                code: error.code,
+                message: error.message,
+              }
+            })
+            return
+          }
           else {
             log.error({ msg: `service.error; ${error.message}` })
             return await pres.status(500).json({
