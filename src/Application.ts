@@ -1,7 +1,7 @@
 import { container } from "./Container.ts";
 import { Controller } from './Controller.ts';
 import { type Framework } from "./Framework.ts";
-import { DI } from "./mod.ts";
+import { DI, Errors } from "./mod.ts";
 
 export interface ApplicationConstructorProps<C = any> {
   framework: Framework<C>
@@ -25,6 +25,10 @@ export class ServiceBuilder {
    * Injects the class to the DI container; class resolution depends on the Scope.
    */
   addClass<T extends object>(token: DI.Token<T>, clazz: DI.Constructor<T>, options?: { scope?: DI.Scope }): ServiceBuilder {
+    if(!token)
+      throw new Errors.ArgumentError('token')
+    if(!clazz)
+      throw new Errors.ArgumentError('clazz')
     container.register<T>(token, { useClass: clazz }, {
       scope: options?.scope ?? DI.Scope.Singleton
     })
@@ -36,6 +40,10 @@ export class ServiceBuilder {
    * Note that the value is always registered as Singleton
    */
   addValue<T extends object>(token: DI.Token<T>, value: T): ServiceBuilder {
+    if(!token)
+      throw new Errors.ArgumentError('token')
+    if(!value)
+      throw new Errors.ArgumentError('value')
     container.register<T>(token, { useValue: value })
     return this
   }
