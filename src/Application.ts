@@ -66,7 +66,7 @@ export class Application {
   get Controllers(): ControllerBuilder {
     return new ControllerBuilder(this.#controllers)
   }
-  
+
   get Services(): ServiceBuilder {
     return new ServiceBuilder()
   }

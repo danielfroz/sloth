@@ -24,9 +24,9 @@ export class ApiFetch implements Api {
   private options?: ApiInitOptions
 
   init(options?: ApiInitOptions): Api {
-    let base: string | undefined
-    if(options && options.base && options.base.endsWith('/')) {
-      base = options.base.substring(0, options.base.length - 2)
+    let base = options?.base
+    if(base && base.endsWith('/')) {
+      base = base.substring(0, base.length - 2)
     }
     this.options = { base, throwOnError: options?.throwOnError ?? true }
     return this
