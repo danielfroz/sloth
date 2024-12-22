@@ -27,6 +27,7 @@ describe('EchoSaveHandler', () => {
     const cmd = {
       id,
       sid: id,
+      auth: '1', // this info comes from Authorization request header
       text: 'Hello world'
     } as EchoSaveCommand
     const res = await handler.handle(cmd)

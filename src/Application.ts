@@ -1,21 +1,23 @@
+import { ConsoleLog, Log } from "@danielfroz/slog";
 import { container } from "./Container.ts";
 import { Controller } from './Controller.ts';
 import { type Framework } from "./Framework.ts";
-import { DI, Errors } from "./mod.ts";
+import { DI, Errors, Middleware } from "./mod.ts";
 
 export interface ApplicationConstructorProps<C = any> {
   framework: Framework<C>
+  log?: Log
 }
 
-export class ControllerBuilder {
-  constructor(readonly controllers: Array<Controller>) {}
+export class HandlerBuilder {
+  constructor(readonly handlers: Array<Controller | Middleware>) {}
 
-  add(controller: Controller): ControllerBuilder {
-    return this.push(controller)
+  add(handler: Controller | Middleware): HandlerBuilder {
+    return this.push(handler)
   }
 
-  push(controller: Controller): ControllerBuilder {
-    this.controllers.push(controller)
+  push(handler: Controller | Middleware): HandlerBuilder {
+    this.handlers.push(handler)
     return this
   }
 }
@@ -50,21 +52,23 @@ export class ServiceBuilder {
 }
 
 export class Application {
+  static log: Log
   readonly framework: Framework<any>
-  readonly #controllers = new Array<Controller>()
+  readonly #handlers = new Array<Controller | Middleware>()
 
   constructor(
     props: ApplicationConstructorProps<any>
   ) {
     this.framework = props.framework
+    Application.log = props.log ?? new ConsoleLog({ init: { mod: '@danielfroz/sloth' }})
   }
 
   get app(): any {
     return this.framework.app()
   }
 
-  get Controllers(): ControllerBuilder {
-    return new ControllerBuilder(this.#controllers)
+  get Handlers(): HandlerBuilder {
+    return new HandlerBuilder(this.#handlers)
   }
 
   get Services(): ServiceBuilder {
@@ -73,8 +77,11 @@ export class Application {
 
   async start(args: { port: number }): Promise<void> {
     // leaving the initialization of the controllers to the last moment...
-    for(const c of this.#controllers) {
-      this.framework.createController(c)
+    for(const c of this.#handlers) {
+      if(typeof(c) === 'function')
+        this.framework.createMiddleware(c as Middleware)
+      else
+        this.framework.createController(c as Controller)
     }
     const port = args?.port ?? 80
     await this.framework.listen({ port })

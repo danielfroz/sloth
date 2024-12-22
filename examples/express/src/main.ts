@@ -1,9 +1,10 @@
 import { app } from "./app.ts";
-import { Controllers, Middleware, Repos } from './inits/index.ts';
+import { Controllers, Express, Log, Repos } from './inits/index.ts';
 
 try {
+  await Log.init()
   await Repos.init()
-  await Middleware.init()
+  await Express.init()
   await Controllers.init()
   await app.start({ port: 4000 })
 }

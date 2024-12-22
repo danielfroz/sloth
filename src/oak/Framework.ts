@@ -1,10 +1,17 @@
-import { ConsoleLog } from '@danielfroz/slog';
-import { type Base, type Controller, Errors, type Framework, container } from "@danielfroz/sloth";
-import { Application, type Context, Router } from "jsr:@oak/oak@17.1.3";
+import { ConsoleLog, Log } from "@danielfroz/slog";
+import { type Base, type Controller, Errors, type Framework, MiddlewareCtx, container } from "@danielfroz/sloth";
+import { Application, Context, Next, Router } from "jsr:@oak/oak@17.1.3";
+import { Middleware, Application as SlothApplication } from "../mod.ts";
+
+const MOD = '@danielfroz/sloth/oak'
 
 export class OakFramework implements Framework<Application> {
-  private readonly log = new ConsoleLog({ init: { mod: '@danielfroz/sloth/oak' }})
+  private readonly log: Log
   private readonly application = new Application()
+
+  constructor() {
+    this.log = SlothApplication.log ? SlothApplication.log.child({ mod: MOD }): new ConsoleLog({ init: { mod: MOD }})
+  }
 
   app(): Application {
     return this.application
@@ -14,7 +21,6 @@ export class OakFramework implements Framework<Application> {
    * Generates controller using Oak.Router
    */
   createController(controller: Controller): void {
-    const log = this.log.child({ handler: 'initController' })
     for(const r of controller.routes) {
       const router = new Router();
       const base = controller.base ?
@@ -25,13 +31,19 @@ export class OakFramework implements Framework<Application> {
         '/'
       const url = `${base}${endpoint}`
       router.post(url, async (ctx: Context) => {
+        const log = this.log.child({ handler: url })
         try {
           const h = container.resolve(r.type)
           if(!h) {
             throw new Error(`handler not resolved with type: ${r.type}`)
           }
           const req = await ctx.request.body.json() as Base
-          const res = await h.handle(req)
+          // If we have ctx.state defined by any Middleware, we add such information to the Command or Query
+          const cmdquery = ctx.state != null ? {
+            ...ctx.state,
+            ...req,
+          }: req
+          const res = await h.handle(cmdquery)
           ctx.response.status = 200
           ctx.response.body = res
           return
@@ -96,9 +108,17 @@ export class OakFramework implements Framework<Application> {
       })
 
       this.application.use(router.routes())
-
-      log.debug(`registered handler ${url} -> ${r.route.handler.name}`)
+      this.log.debug({ msg: `registered @Controller ${url} -> ${r.route.handler.name}` })
     }
+  }
+
+  createMiddleware(middleware: Middleware): void {
+    const mid = async (ctx: Context, next: Next) => {
+      const m = middleware as MiddlewareCtx
+      await m<Context, Next>(() => ctx, () => next)
+    }
+    this.application.use(mid)
+    this.log.debug(`registered @Middleware: ${middleware.name}`)
   }
 
   async listen(args?: Framework.Listen): Promise<void> {

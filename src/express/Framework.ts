@@ -1,12 +1,16 @@
-import { ConsoleLog } from '@danielfroz/slog';
-import { type Base, type Controller, Errors, type Framework, container } from "@danielfroz/sloth";
-import express, { Request, Response } from 'npm:express@4.21.2';
+import { ConsoleLog, Log } from '@danielfroz/slog';
+import { Application, type Base, type Controller, Errors, type Framework, MiddlewareReq, container } from "@danielfroz/sloth";
+import express, { NextFunction, Request, Response } from 'npm:express@4.21.2';
+import { Middleware } from "../Middleware.ts";
+
+const MOD = '@danielfroz/sloth/express'
 
 export class ExpressFramework implements Framework<express.Application> {
-  private readonly log = new ConsoleLog({ init: { mod: '@danielfroz/sloth/express' }})
+  private readonly log: Log
   private readonly application = express()
 
   constructor() {
+    this.log = Application.log ? Application.log.child({ mod: MOD }): new ConsoleLog({ init: { mod: MOD }})
     this.application.use(express.json())
     this.application.use(express.urlencoded({ extended: true }))
   }
@@ -19,7 +23,6 @@ export class ExpressFramework implements Framework<express.Application> {
    * Generates cotnroller using express.Router
    */
   createController(controller: Controller): void {
-    const log = this.log.child({ handler: 'initController' })
     for(const r of controller.routes) {
       const router = new express.Router();
       const base = controller.base ?
@@ -30,13 +33,21 @@ export class ExpressFramework implements Framework<express.Application> {
         '/'
       const url = endpoint
       router.post(url, async (preq: Request, pres: Response) => {
+        const log = this.log.child({ handler: url })
         try {
           const h = container.resolve(r.type)
           if(!h) {
             throw new Error(`handler not resolved with type: ${r.type}`)
           }
+
           const req = preq.body as Base
-          const res = await h.handle(req)
+          // If Midlleware has defined res.locals, then we pass this down to the Command or Query
+          const cmdreq = pres.locals != null ? {
+            ...pres.locals,
+            ...req,
+          }: req
+
+          const res = await h.handle(cmdreq)
           return await pres.status(200).json(res)
         }
         catch(error: Error | any) {
@@ -91,8 +102,17 @@ export class ExpressFramework implements Framework<express.Application> {
       })
 
       this.application.use(base, router)
-      log.debug(`registered handler ${base}${url} -> ${r.route.handler.name}`)
+      this.log.debug({ msg: `registered handler ${base}${url} -> ${r.route.handler.name}` })
     }
+  }
+
+  createMiddleware(middleware: Middleware): void {
+    const mid = async (req: Request, res: Response, next: NextFunction) => {
+      const m = middleware as MiddlewareReq
+      await m<Request, Response, NextFunction>(() => req, () => res, () => next)
+    }
+    this.application.use(mid)
+    this.log.debug(`registered @Middleware: ${middleware.name}`)
   }
 
   async listen(args?: Framework.Listen): Promise<void> {

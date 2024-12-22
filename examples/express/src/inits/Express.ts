@@ -1,5 +1,7 @@
 import { app } from '@/app.ts';
-import { Context, Next, Application as OakApplication } from "@oak/oak";
+import { Types } from "@/types.ts";
+import { container } from "@danielfroz/sloth";
+import express, { NextFunction, Request, Response } from "express";
 
 export const init = async () => {
   /**
@@ -7,22 +9,19 @@ export const init = async () => {
    * In this example we're accessing the Oak server application.
    * note that casting is necessary as container() can be anything; depends really on Framework's implementation
    */
-  const oakapp = app.app as OakApplication
+  const eapp = app.app as express
+  
   /**
    * Example of middleware created directly from Oak/oak
    * 
    * This allow us to extend the implementation as needed...
    * Even create Routers manually
    */
-  oakapp.use(async (ctx: Context, next: Next) => {
+  eapp.use(async (req: Request, _res: Response, next: NextFunction) => {
+    const log = container.resolve(Types.Log)
     const start = new Date().getTime()
     await next()
     const end = new Date().getTime()
-    console.log(`request to ${ctx.request.url} served in ${end - start} ms`)
-  })
-
-  // hooking to Oak Event Listener
-  oakapp.addEventListener('listen', ({ port, host }) => {
-    console.log(`listening on port ${port}`)
+    log.info(`request to ${req.originalUrl} served in ${end - start} ms`)
   })
 }
