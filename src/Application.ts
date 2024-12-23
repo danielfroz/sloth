@@ -60,7 +60,14 @@ export class Application {
     props: ApplicationConstructorProps<any>
   ) {
     this.framework = props.framework
-    Application.log = props.log ?? new ConsoleLog({ init: { mod: '@danielfroz/sloth' }})
+    /** 
+     * { sloth: true }, indicates that the log entries are reported by 
+     * Sloth Application and/or Framework; so may differ from your services's log.
+     * It may seems a cosmetic but helps when DEBUG or TRACE level are set
+     */
+    Application.log = props.log ?
+      props.log.child({ sloth: true }):
+      new ConsoleLog({ init: { mod: '@danielfroz/sloth' }})
   }
 
   get app(): any {
