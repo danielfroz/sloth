@@ -1,5 +1,5 @@
 import { ConsoleLog, Log } from '@danielfroz/slog';
-import { Application, type Base, type Controller, Errors, type Framework, MiddlewareReq, container } from "@danielfroz/sloth";
+import { Application, type Base, BaseResult, type Controller, Errors, type Framework, MiddlewareReq, container } from "@danielfroz/sloth";
 import express, { NextFunction, Request, Response } from 'npm:express@4.21.2';
 import { Middleware } from "../Middleware.ts";
 
@@ -10,7 +10,9 @@ export class ExpressFramework implements Framework<express.Application> {
   private readonly application = express()
 
   constructor() {
-    this.log = Application.log ? Application.log.child({ mod: MOD }): new ConsoleLog({ init: { mod: MOD }})
+    this.log = Application.log ? 
+      Application.log:
+      new ConsoleLog({ init: { mod: MOD }})
     this.application.use(express.json())
     this.application.use(express.urlencoded({ extended: true }))
   }
@@ -34,6 +36,9 @@ export class ExpressFramework implements Framework<express.Application> {
       const url = endpoint
       router.post(url, async (preq: Request, pres: Response) => {
         const log = this.log.child({ handler: url })
+
+        // this allow to catch the ID and SID from the request to pass along the error response
+        const rmeta: Partial<BaseResult> = {}
         try {
           const h = container.resolve(r.type)
           if(!h) {
@@ -41,6 +46,9 @@ export class ExpressFramework implements Framework<express.Application> {
           }
 
           const req = preq.body as Base
+          rmeta.id = req.id
+          rmeta.sid = req.sid
+
           // If Midlleware has defined res.locals, then we pass this down to the Command or Query
           const cmdreq = pres.locals != null ? {
             ...pres.locals,
@@ -48,12 +56,16 @@ export class ExpressFramework implements Framework<express.Application> {
           }: req
 
           const res = await h.handle(cmdreq)
-          return await pres.status(200).json(res)
+          return await pres.status(200).json({
+            ...rmeta,
+            ...res
+          })
         }
         catch(error: Error | any) {
           if(error instanceof Errors.ArgumentError) {
-            log.error({ msg: `bad request; error: ${error.message}` })
+            log.error({ sid: rmeta.sid, msg: `bad request error: ${error.message}` })
             return await pres.status(400).json({
+              ...rmeta,
               error: {
                 code: 'badrequest',
                 message: error.message
@@ -61,7 +73,12 @@ export class ExpressFramework implements Framework<express.Application> {
             })
           }
           else if(error instanceof Errors.ApiError) {
-            log.error({ msg: `api error; url: ${error.url}, status: ${error.status}, error: ${error.message}` })
+            log.error({
+              sid: rmeta.sid, 
+              url: error.url,
+              status: error.status,
+              msg: `api error: ${error.message}`,
+            })
             return await pres.status(error.status).json({
               error: {
                 code: 'api.service',
@@ -70,8 +87,14 @@ export class ExpressFramework implements Framework<express.Application> {
             })
           }
           else if(error instanceof Errors.AuthError) {
-            log.error({ msg: `auth error; unauthorized, code: ${error.code}, error: ${error.description}` })
+            log.error({
+              sid: rmeta.sid,
+              code: error.code,
+              description: error.description,
+              msg: `auth error: ${error.message}`,
+            })
             return await pres.status(401).json({
+              ...rmeta,
               error: {
                 code: 'unauthorized',
                 message: error.message,
@@ -80,8 +103,14 @@ export class ExpressFramework implements Framework<express.Application> {
             return
           }
           else if(error instanceof Errors.CodeDescriptionError) {
-            log.error({ msg: `service error; unauthorized, code: ${error.code}, error: ${error.description}` })
+            log.error({
+              sid: rmeta.sid,
+              code: error.code,
+              description: error.description,
+              msg: `error: ${error.message}`
+            })
             return await pres.status(500).json({
+              ...rmeta,
               error: {
                 code: error.code,
                 message: error.message,
@@ -90,8 +119,12 @@ export class ExpressFramework implements Framework<express.Application> {
             return
           }
           else {
-            log.error({ msg: `service.error; ${error.message}` })
+            log.error({
+              sid: rmeta.sid,
+              msg: `service.error: ${error.message}`
+            })
             return await pres.status(500).json({
+              ...rmeta,
               error: {
                 code: 'service.error',
                 message: `${error}`

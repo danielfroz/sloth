@@ -1,5 +1,5 @@
 import { ConsoleLog, Log } from "@danielfroz/slog";
-import { type Base, type Controller, Errors, type Framework, MiddlewareCtx, container } from "@danielfroz/sloth";
+import { type Base, BaseResult, type Controller, Errors, type Framework, MiddlewareCtx, container } from "@danielfroz/sloth";
 import { Application, Context, Next, Router } from "jsr:@oak/oak@17.1.3";
 import { Middleware, Application as SlothApplication } from "../mod.ts";
 
@@ -10,7 +10,9 @@ export class OakFramework implements Framework<Application> {
   private readonly application = new Application()
 
   constructor() {
-    this.log = SlothApplication.log ? SlothApplication.log.child({ mod: MOD }): new ConsoleLog({ init: { mod: MOD }})
+    this.log = SlothApplication.log ?
+      SlothApplication.log: 
+      new ConsoleLog({ init: { mod: MOD }})
   }
 
   app(): Application {
@@ -32,27 +34,39 @@ export class OakFramework implements Framework<Application> {
       const url = `${base}${endpoint}`
       router.post(url, async (ctx: Context) => {
         const log = this.log.child({ handler: url })
+
+        // this allow to catch the ID and SID from the request to pass along the error response
+        const rmeta: Partial<BaseResult> = {}
         try {
           const h = container.resolve(r.type)
           if(!h) {
             throw new Error(`handler not resolved with type: ${r.type}`)
           }
+
           const req = await ctx.request.body.json() as Base
+          rmeta.id = req.id
+          rmeta.sid = req.sid
+
           // If we have ctx.state defined by any Middleware, we add such information to the Command or Query
           const cmdquery = ctx.state != null ? {
             ...ctx.state,
             ...req,
           }: req
-          const res = await h.handle(cmdquery)
+
+          const res = await h.handle(cmdquery) as BaseResult
           ctx.response.status = 200
-          ctx.response.body = res
+          ctx.response.body = {
+            ...rmeta,
+            ...res 
+          }
           return
         }
         catch(error: Error | any) {
           if(error instanceof Errors.ArgumentError) {
-            log.error({ msg: `bad request; error: ${error.message}` })
+            log.error({ sid: rmeta.sid, msg: `bad request; error: ${error.message}` })
             ctx.response.status = 400
             ctx.response.body = {
+              ...rmeta,
               error: {
                 code: 'badrequest',
                 message: error.message
@@ -61,20 +75,32 @@ export class OakFramework implements Framework<Application> {
             return
           }
           else if(error instanceof Errors.ApiError) {
-            log.error({ msg: `api error; url: ${error.url}, status: ${error.status}, error: ${error.message}` })
+            log.error({
+              sid: rmeta.sid,
+              url: error.url,
+              status: error.status,
+              msg: `api error: ${error.message}`,
+            })
             ctx.response.status = error.status,
             ctx.response.body = {
+              ...rmeta,
               error: {
-                code: 'service.api',
+                code: 'api.service',
                 message: error.message,
               }
             }
             return
           }
           else if(error instanceof Errors.AuthError) {
-            log.error({ msg: `auth error; unauthorized, code: ${error.code}, error: ${error.description}` })
+            log.error({
+              sid: rmeta.sid,
+              code: error.code,
+              description: error.description,
+              msg: `auth error: ${error.message}`
+            })
             ctx.response.status = 401,
             ctx.response.body = {
+              ...rmeta,
               error: {
                 code: 'unauthorized',
                 message: error.message,
@@ -83,9 +109,15 @@ export class OakFramework implements Framework<Application> {
             return
           }
           else if(error instanceof Errors.CodeDescriptionError) {
-            log.error({ msg: `service error; unauthorized, code: ${error.code}, error: ${error.description}` })
+            log.error({
+              sid: rmeta.sid,
+              code: error.code,
+              description: error.description,
+              msg: `error: ${error.message}`
+            })
             ctx.response.status = 500,
             ctx.response.body = {
+              ...rmeta,
               error: {
                 code: error.code,
                 message: error.message,
@@ -94,9 +126,13 @@ export class OakFramework implements Framework<Application> {
             return
           }
           else {
-            log.error({ msg: `service.error; ${error.message}` })
+            log.error({ 
+              sid: rmeta.sid,
+              msg: `service.error: ${error.message}`
+            })
             ctx.response.status = 500
             ctx.response.body = {
+              ...rmeta,
               error: {
                 code: 'service.error',
                 message: `${error}`
