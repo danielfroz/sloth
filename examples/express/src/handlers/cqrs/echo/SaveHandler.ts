@@ -11,7 +11,8 @@ import { CommandHandler, DI, Errors } from "@danielfroz/sloth";
  */
 export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSaveCommandResult> {
   constructor(
-    private readonly echoRepo = DI.inject(Types.Repos.Echo)
+    private readonly echoRepo = DI.inject(Types.Repos.Echo),
+    private readonly log = DI.inject(Types.Log)
   ) {}
 
   async handle(cmd: EchoSaveCommand): Promise<EchoSaveCommandResult> {
@@ -23,6 +24,7 @@ export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSave
       throw new Errors.ArgumentError('cmd.text')
 
     const { id, sid, text } = cmd
+    const log = this.log.child({ handler: 'echo.Save', sid })
 
     const echo = {
       id,
@@ -30,6 +32,8 @@ export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSave
     }
 
     await this.echoRepo.save(echo)
+
+    log.info({ msg: `echo saved with text: ${echo.text}`})
     
     return {
       id,
