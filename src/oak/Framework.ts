@@ -1,4 +1,3 @@
-import { ConsoleLog, Log } from "@danielfroz/slog";
 import { type Base, BaseResult, type Controller, Errors, type Framework, MiddlewareCtx, container } from "@danielfroz/sloth";
 import { Application, Context, Next, Router } from "jsr:@oak/oak@17.1.3";
 import { Middleware, Application as SlothApplication } from "../mod.ts";
@@ -6,14 +5,7 @@ import { Middleware, Application as SlothApplication } from "../mod.ts";
 const MOD = '@danielfroz/sloth/oak'
 
 export class OakFramework implements Framework<Application> {
-  private readonly log: Log
   private readonly application = new Application()
-
-  constructor() {
-    this.log = SlothApplication.log ?
-      SlothApplication.log: 
-      new ConsoleLog({ init: { mod: MOD }})
-  }
 
   app(): Application {
     return this.application
@@ -33,7 +25,7 @@ export class OakFramework implements Framework<Application> {
         '/'
       const url = `${base}${endpoint}`
       router.post(url, async (ctx: Context) => {
-        const log = this.log.child({ handler: url })
+        const log = SlothApplication.log.child({ handler: url })
 
         // this allow to catch the ID and SID from the request to pass along the error response
         const rmeta: Partial<BaseResult> = {}
@@ -144,7 +136,7 @@ export class OakFramework implements Framework<Application> {
       })
 
       this.application.use(router.routes())
-      this.log.debug({ msg: `registered @Controller ${url} -> ${r.route.handler.name}` })
+      SlothApplication.log.debug({ msg: `registered @Controller ${url} -> ${r.route.handler.name}` })
     }
   }
 
@@ -154,7 +146,7 @@ export class OakFramework implements Framework<Application> {
       await m<Context, Next>(() => ctx, () => next)
     }
     this.application.use(mid)
-    this.log.debug(`registered @Middleware: ${middleware.name}`)
+    SlothApplication.log.debug(`registered @Middleware: ${middleware.name}`)
   }
 
   async listen(args?: Framework.Listen): Promise<void> {

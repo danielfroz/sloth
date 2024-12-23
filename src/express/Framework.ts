@@ -1,4 +1,3 @@
-import { ConsoleLog, Log } from '@danielfroz/slog';
 import { Application, type Base, BaseResult, type Controller, Errors, type Framework, MiddlewareReq, container } from "@danielfroz/sloth";
 import express, { NextFunction, Request, Response } from 'npm:express@4.21.2';
 import { Middleware } from "../Middleware.ts";
@@ -6,13 +5,9 @@ import { Middleware } from "../Middleware.ts";
 const MOD = '@danielfroz/sloth/express'
 
 export class ExpressFramework implements Framework<express.Application> {
-  private readonly log: Log
   private readonly application = express()
 
   constructor() {
-    this.log = Application.log ? 
-      Application.log:
-      new ConsoleLog({ init: { mod: MOD }})
     this.application.use(express.json())
     this.application.use(express.urlencoded({ extended: true }))
   }
@@ -35,7 +30,7 @@ export class ExpressFramework implements Framework<express.Application> {
         '/'
       const url = endpoint
       router.post(url, async (preq: Request, pres: Response) => {
-        const log = this.log.child({ handler: url })
+        const log = Application.log.child({ handler: url })
 
         // this allow to catch the ID and SID from the request to pass along the error response
         const rmeta: Partial<BaseResult> = {}
@@ -135,7 +130,7 @@ export class ExpressFramework implements Framework<express.Application> {
       })
 
       this.application.use(base, router)
-      this.log.debug({ msg: `registered handler ${base}${url} -> ${r.route.handler.name}` })
+      Application.log.debug({ msg: `registered handler ${base}${url} -> ${r.route.handler.name}` })
     }
   }
 
@@ -145,7 +140,7 @@ export class ExpressFramework implements Framework<express.Application> {
       await m<Request, Response, NextFunction>(() => req, () => res, () => next)
     }
     this.application.use(mid)
-    this.log.debug(`registered @Middleware: ${middleware.name}`)
+    Application.log.debug(`registered @Middleware: ${middleware.name}`)
   }
 
   async listen(args?: Framework.Listen): Promise<void> {
