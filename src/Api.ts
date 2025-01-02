@@ -32,13 +32,25 @@ export class ApiFetch implements Api {
     return this
   }
 
+  private _url(url: string): string {
+    if(url.includes(':')) {
+      return url
+    }
+    if(this.options?.base) {
+      if(url.startsWith('/'))
+        return `${this.options.base}${url}`
+      else
+        return `${this.options.base}/${url}`
+    }
+    throw new Errors.ArgumentError(`invalid url: ${url}`)
+  }
+
   get<R extends object>(options: ApiGetOptions): Promise<R> {
     return new Promise((resolve, reject) => {
       if(!options.url)
         throw new Errors.ArgumentError('url')
 
-      const correctUrl = !options.url.includes(':') && options.url.startsWith('/') ? options.url: `/${options.url}`
-      const url = `${this.options?.base ?? ''}${correctUrl}`
+      const url = this._url(options.url)
       if(!options.headers) {
         options.headers = {} as Record<string,string>
       }
@@ -68,8 +80,7 @@ export class ApiFetch implements Api {
       if(!options.body)
         throw new Errors.ArgumentError('body')
 
-      const correctUrl = !options.url.includes(':') && options.url.startsWith('/') ? options.url: `/${options.url}`
-      const url = `${this.options?.base ?? ''}${correctUrl}`
+      const url = this._url(options.url)
       if(!options.headers) {
         options.headers = {} as Record<string,string>
       }
