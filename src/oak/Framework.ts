@@ -1,6 +1,6 @@
-import { type Base, BaseResult, type Controller, Errors, type Framework, MiddlewareCtx, container } from "@danielfroz/sloth";
+import { type Base, BaseResult, type Controller, Errors, type Framework, Middleware, MiddlewareCtx, container } from "@danielfroz/sloth";
 import { Application, Context, Next, Router } from "jsr:@oak/oak@17.1.3";
-import { Middleware, Application as SlothApplication } from "../mod.ts";
+import { Application as SlothApplication } from "../mod.ts";
 
 const MOD = '@danielfroz/sloth/oak'
 
@@ -143,7 +143,7 @@ export class OakFramework implements Framework<Application> {
   createMiddleware(middleware: Middleware): void {
     const mid = async (ctx: Context, next: Next) => {
       const m = middleware as MiddlewareCtx
-      await m<Context, Next>(() => ctx, () => next)
+      await m(() => ctx, () => next)
     }
     this.application.use(mid)
     SlothApplication.log.debug(`registered @Middleware: ${middleware.name}`)

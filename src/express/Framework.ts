@@ -1,6 +1,5 @@
-import { Application, type Base, BaseResult, type Controller, Errors, type Framework, MiddlewareReq, container } from "@danielfroz/sloth";
+import { Application, type Base, BaseResult, type Controller, Errors, type Framework, Middleware, MiddlewareReq, container } from "@danielfroz/sloth";
 import express, { NextFunction, Request, Response } from 'npm:express@4.21.2';
-import { Middleware } from "../Middleware.ts";
 
 const MOD = '@danielfroz/sloth/express'
 
@@ -137,7 +136,7 @@ export class ExpressFramework implements Framework<express.Application> {
   createMiddleware(middleware: Middleware): void {
     const mid = async (req: Request, res: Response, next: NextFunction) => {
       const m = middleware as MiddlewareReq
-      await m<Request, Response, NextFunction>(() => req, () => res, () => next)
+      await m(() => req, () => res, () => next)
     }
     this.application.use(mid)
     Application.log.debug(`registered @Middleware: ${middleware.name}`)
