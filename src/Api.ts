@@ -46,7 +46,7 @@ export class ApiFetch implements Api {
   }
 
   get<R extends object>(options: ApiGetOptions): Promise<R> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       if(!options.url)
         throw new Errors.ArgumentError('url')
 
@@ -56,25 +56,34 @@ export class ApiFetch implements Api {
       }
       options.headers['Accept'] = 'application/json'
       options.headers['Content-Type'] = 'application/json'
-      fetch(url, {
-        method: 'GET',
-        headers: options.headers,
-      })
-        .then(async (res) => {
-          if(res.status !== 200 && res.status !== 201) {
-            return reject(new Errors.ApiError('GET', url, res.status, await res.text()))
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: options.headers,
+        })
+        const json = await res.json()
+        if(res.status !== 200 && res.status !== 201) {
+          if(json.error?.code) {
+            throw new Errors.ApiError('POST', url, res.status, json.error?.code, json.error?.message)
           }
-          const r = await res.json() as unknown as R
-          return resolve(r)
-        })
-        .catch(error => {
-          return reject(new Errors.ApiError('GET', url, 500, `${error}`))
-        })
+          else {
+            // generic error code
+            throw new Errors.ApiError('POST', url, res.status, 'service', JSON.stringify(json))
+          }
+        }
+        return resolve(json as R)
+      }
+      catch(error: Errors.ApiError|Error|any) {
+        if(error.code)
+          return reject(error)
+        // generic error
+        return reject(new Errors.ApiError('POST', url, 500, 'service', error.message))
+      }
     })
   }
 
   post<R extends object>(options: ApiPostOptions): Promise<R> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       if(!options.url)
         throw new Errors.ArgumentError('url')
       if(!options.body)
@@ -87,21 +96,30 @@ export class ApiFetch implements Api {
       
       options.headers['Accept'] = 'application/json'
       options.headers['Content-Type'] = 'application/json'
-      fetch(url, {
-        method: 'POST',
-        body: JSON.stringify(options.body),
-        headers: options.headers,
-      })
-        .then(async (res) => {
-          if(res.status !== 200 && res.status !== 201) {
-            return reject(new Errors.ApiError('POST', url, res.status, await res.text()))
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          body: JSON.stringify(options.body),
+          headers: options.headers,
+        })
+        const json = await res.json()
+        if(res.status !== 200 && res.status !== 201) {
+          if(json.error?.code) {
+            throw new Errors.ApiError('POST', url, res.status, json.error?.code, json.error?.message)
           }
-          const r = await res.json() as unknown as R
-          return resolve(r)
-        })
-        .catch(error => {
-          return reject(new Errors.ApiError('POST', url, 500, `${error}`))
-        })
+          else {
+            // generic error code
+            throw new Errors.ApiError('POST', url, res.status, 'service', JSON.stringify(json))
+          }
+        }
+        return resolve(json as R)
+      }
+      catch(error: Errors.ApiError|Error|any) {
+        if(error.code)
+          return reject(error)
+        // generic error
+        return reject(new Errors.ApiError('POST', url, 500, 'service', error.message))
+      }
     })
   }
 }

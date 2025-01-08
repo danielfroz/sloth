@@ -5,7 +5,18 @@ export class ArgumentError extends Error {
 }
 
 export class ApiError extends Error {
-  constructor(readonly method: string, readonly url: string, readonly status: number, message: string) {
+  constructor(
+    readonly method: string,
+    readonly url: string,
+    readonly status: number,
+    /** 
+     * error code returned from the Api;
+     * this applies if the API returns 500 with error ErrorResult:
+     * { error: { code: string, message: string }}
+     */
+    readonly code: string,
+    message: string,
+  ) {
     super(message)
   }
 }

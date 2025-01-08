@@ -57,7 +57,10 @@ export class ExpressFramework implements Framework<express.Application> {
         }
         catch(error: Error | any) {
           if(error instanceof Errors.ArgumentError) {
-            log.error({ sid: rmeta.sid, msg: `bad request error: ${error.message}` })
+            log.error({
+              sid: rmeta.sid,
+              msg: `bad request error: ${error.message}`
+            })
             return await pres.status(400).json({
               ...rmeta,
               error: {
@@ -71,11 +74,13 @@ export class ExpressFramework implements Framework<express.Application> {
               sid: rmeta.sid, 
               url: error.url,
               status: error.status,
-              msg: `api error: ${error.message}`,
+              code: error.code,
+              msg: error.message,
             })
             return await pres.status(error.status).json({
+              ...rmeta,
               error: {
-                code: 'api.service',
+                code: error.code,
                 message: error.message,
               }
             })
@@ -85,7 +90,7 @@ export class ExpressFramework implements Framework<express.Application> {
               sid: rmeta.sid,
               code: error.code,
               description: error.description,
-              msg: `auth error: ${error.message}`,
+              msg: error.message,
             })
             return await pres.status(401).json({
               ...rmeta,
@@ -101,7 +106,7 @@ export class ExpressFramework implements Framework<express.Application> {
               sid: rmeta.sid,
               code: error.code,
               description: error.description,
-              msg: `error: ${error.message}`
+              msg: error.message
             })
             return await pres.status(500).json({
               ...rmeta,

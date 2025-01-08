@@ -55,7 +55,10 @@ export class OakFramework implements Framework<Application> {
         }
         catch(error: Error | any) {
           if(error instanceof Errors.ArgumentError) {
-            log.error({ sid: rmeta.sid, msg: `bad request; error: ${error.message}` })
+            log.error({
+              sid: rmeta.sid,
+              msg: `bad request; error: ${error.message}`
+            })
             ctx.response.status = 400
             ctx.response.body = {
               ...rmeta,
@@ -71,13 +74,14 @@ export class OakFramework implements Framework<Application> {
               sid: rmeta.sid,
               url: error.url,
               status: error.status,
-              msg: `api error: ${error.message}`,
+              code: error.code,
+              msg: error.message,
             })
             ctx.response.status = error.status,
             ctx.response.body = {
               ...rmeta,
               error: {
-                code: 'api.service',
+                code: error.code,
                 message: error.message,
               }
             }
@@ -88,7 +92,7 @@ export class OakFramework implements Framework<Application> {
               sid: rmeta.sid,
               code: error.code,
               description: error.description,
-              msg: `auth error: ${error.message}`
+              msg: error.message
             })
             ctx.response.status = 401,
             ctx.response.body = {
@@ -105,7 +109,7 @@ export class OakFramework implements Framework<Application> {
               sid: rmeta.sid,
               code: error.code,
               description: error.description,
-              msg: `error: ${error.message}`
+              msg: error.message,
             })
             ctx.response.status = 500,
             ctx.response.body = {
