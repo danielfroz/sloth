@@ -15,10 +15,9 @@ while adhering to the CQRS (Command Query Responsibility Segregation) pattern.
 Ready to dive in? Explore the example implementations to see **Sloth** in
 action:
 
-- **[Oak Example](examples/oak)**: Demonstrates how to build an API service
-  using Oak.
-- **[Express Example](examples/express)**: Illustrates an API implementation
-  with Express.
+- **[Oak Example](examples/oak)**: API service implementation with Oak.
+- **[Express Example](examples/express)**: API service implementation with
+  Express.
 
 Each example showcases the recommended project structure and key concepts for
 working with **Sloth**.

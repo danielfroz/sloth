@@ -17,10 +17,12 @@ export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSave
   async handle(cmd: EchoSaveCommand): Promise<EchoSaveCommandResult> {
     if(!cmd)
       throw new Errors.ArgumentError('cmd')
-    if(!cmd.auth)
-      throw new Errors.AuthError('unauthorized', 'permission denied', 'invalid request')
+    if(!cmd.id)
+      throw new Errors.ArgumentError('cmd.id')
     if(!cmd.text)
       throw new Errors.ArgumentError('cmd.text')
+    if(!cmd.auth)
+      throw new Errors.AuthError('unauthorized', 'permission denied', 'invalid request')
 
     const { id, sid, text } = cmd
 

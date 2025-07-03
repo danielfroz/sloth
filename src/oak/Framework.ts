@@ -1,5 +1,5 @@
 import { type Base, BaseResult, type Controller, Errors, type Framework, Middleware, MiddlewareCtx, container } from "@danielfroz/sloth";
-import { Application, Context, Next, Router } from "jsr:@oak/oak@17.1.3";
+import { Application, Context, Next, Router } from "jsr:@oak/oak@17.1.4";
 import { Application as SlothApplication } from "../mod.ts";
 
 const MOD = '@danielfroz/sloth/oak'

@@ -1,6 +1,6 @@
 {
   "name": "@danielfroz/sloth",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Core module for the Sloth framework",
   "license": "MIT",
   "exports": {
@@ -9,7 +9,7 @@
     "./oak": "./src/oak/mod.ts"
   },
   "imports": {
-    "@danielfroz/slog": "jsr:@danielfroz/slog@^0.2.1"
+    "@danielfroz/slog": "jsr:@danielfroz/slog@^0.2.3"
   },
   "compilerOptions": {
     "strict": true

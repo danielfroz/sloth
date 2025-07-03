@@ -10,7 +10,7 @@ export class EchoGetHandler implements QueryHandler<EchoGetQuery, EchoGetQueryRe
   async handle(query: EchoGetQuery): Promise<EchoGetQueryResult> {
     if(!query)
       throw new Errors.ArgumentError('query')
-    if(!query)
+    if(!query.id)
       throw new Errors.ArgumentError('query.id')
 
     const { id, sid } = query
