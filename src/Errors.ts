@@ -1,3 +1,9 @@
+export class InitError extends Error {
+  constructor(m: string) {
+    super(m)
+  }
+}
+
 export class ArgumentError extends Error {
   constructor(m: string) {
     super(m)

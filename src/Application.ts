@@ -78,11 +78,15 @@ export class Application {
     return new HandlerBuilder(this.#handlers)
   }
 
-  get Services(): ServiceBuilder {
-    return new ServiceBuilder()
-  }
+  // get Services(): ServiceBuilder {
+  //   return new ServiceBuilder()
+  // }
 
   async start(args: { port: number }): Promise<void> {
+    if(this.#handlers.length === 0) {
+      throw new Errors.InitError('There is no handler registered! You must add Controllers or Middlewares prior to call start()')
+    }
+
     // leaving the initialization of the controllers to the last moment...
     for(const c of this.#handlers) {
       if(typeof(c) === 'function')

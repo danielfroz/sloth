@@ -1,6 +1,6 @@
 {
   "name": "@danielfroz/sloth",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Core module for the Sloth framework",
   "license": "MIT",
   "exports": {
