@@ -122,7 +122,11 @@ export class OakFramework implements Framework<Application> {
             return
           }
           else {
-            log.error({ 
+            log.error(error.stack ? {
+              sid: rmeta.sid,
+              msg: `service.error: ${error.message}`,
+              stack: error.stack
+            }: {
               sid: rmeta.sid,
               msg: `service.error: ${error.message}`
             })
