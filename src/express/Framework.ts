@@ -1,4 +1,14 @@
-import { Application, type Base, BaseResult, type Controller, Errors, type Framework, Middleware, MiddlewareReq, container } from "@danielfroz/sloth";
+import {
+  Application,
+  type Base,
+  BaseResult,
+  type Controller,
+  Errors,
+  type Framework,
+  Middleware,
+  MiddlewareReq,
+  container
+} from "@danielfroz/sloth";
 import express, { NextFunction, Request, Response } from 'npm:express@4.21.2';
 
 const MOD = '@danielfroz/sloth/express'
@@ -99,7 +109,20 @@ export class ExpressFramework implements Framework<express.Application> {
                 message: error.message,
               }
             })
-            return
+          }
+          else if(error instanceof Errors.CodeError) {
+            log.error({
+              sid: rmeta.sid,
+              code: error.code,
+              msg: error.message,
+            })
+            return await pres.status(500).json({
+              ...rmeta,
+              error: {
+                code: error.code,
+                message: error.message,
+              }
+            })
           }
           else if(error instanceof Errors.CodeDescriptionError) {
             log.error({
@@ -115,7 +138,6 @@ export class ExpressFramework implements Framework<express.Application> {
                 message: error.message,
               }
             })
-            return
           }
           else {
             log.error(error.stack ? {

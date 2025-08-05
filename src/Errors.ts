@@ -33,6 +33,12 @@ export class AuthError extends Error {
   }
 }
 
+export class CodeError extends Error {
+  constructor(readonly code: string, m: string) {
+    super(m)
+  }
+}
+
 export class CodeDescriptionError extends Error {
   constructor(readonly code: string, message: string, readonly description: string) {
     super(message)

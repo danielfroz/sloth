@@ -1,4 +1,13 @@
-import { type Base, BaseResult, type Controller, Errors, type Framework, Middleware, MiddlewareCtx, container } from "@danielfroz/sloth";
+import {
+  type Base,
+  BaseResult,
+  type Controller,
+  Errors,
+  type Framework,
+  Middleware,
+  MiddlewareCtx,
+  container
+} from "@danielfroz/sloth";
 import { Application, Context, Next, Router } from "jsr:@oak/oak@17.1.4";
 import { Application as SlothApplication } from "../mod.ts";
 
@@ -103,6 +112,21 @@ export class OakFramework implements Framework<Application> {
               }
             }
             return
+          }
+          else if(error instanceof Errors.CodeError) {
+            log.error({
+              sid: rmeta.sid,
+              code: error.code,
+              msg: error.message,
+            })
+            ctx.response.status = 500,
+            ctx.response.body = {
+              ...rmeta,
+              error: {
+                code: error.code,
+                message: error.message,
+              }
+            }
           }
           else if(error instanceof Errors.CodeDescriptionError) {
             log.error({
