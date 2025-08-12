@@ -82,7 +82,7 @@ export class Application {
   //   return new ServiceBuilder()
   // }
 
-  async start(args: { port: number }): Promise<void> {
+  async start(args: Framework.Listen): Promise<void> {
     if(this.#handlers.length === 0) {
       throw new Errors.InitError('There is no handler registered! You must add Controllers or Middlewares prior to call start()')
     }
@@ -95,6 +95,8 @@ export class Application {
         this.framework.createController(c as Controller)
     }
     const port = args?.port ?? 80
-    await this.framework.listen({ port })
+    const hostname = args?.hostname ?? '0.0.0.0'
+    const callback = args?.callback
+    await this.framework.listen({ port, hostname, callback })
   }
 }

@@ -10,6 +10,8 @@ export interface Framework<T = any> {
 
 export namespace Framework {
   export interface Listen {
-    port: number
+    hostname?: string
+    port?: number
+    callback?: (args: { hostname: string, port: number }) => void
   }
 }

@@ -174,7 +174,13 @@ export class ExpressFramework implements Framework<express.Application> {
   }
 
   async listen(args?: Framework.Listen): Promise<void> {
+    const hostname = args?.hostname ?? '0.0.0.0'
     const port = args?.port ?? 80
-    await this.application.listen({ port })
+    const cb = args?.callback
+    await this.application.listen(port, hostname, () => {
+      if(cb) {
+        cb({ hostname, port })
+      }
+    })
   }
 }

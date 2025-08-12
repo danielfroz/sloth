@@ -182,7 +182,14 @@ export class OakFramework implements Framework<Application> {
   }
 
   async listen(args?: Framework.Listen): Promise<void> {
+    const hostname = args?.hostname ?? '0.0.0.0'
     const port = args?.port ?? 80
-    await this.application.listen({ port })
+    const cb = args?.callback
+    this.application.addEventListener('listen', () => {
+      if(cb) {
+        cb({ hostname, port })
+      }
+    })
+    await this.application.listen({ hostname, port })
   }
 }
