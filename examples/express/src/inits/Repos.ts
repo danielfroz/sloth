@@ -4,5 +4,6 @@ import { container } from '@danielfroz/sloth';
 
 export const init = async () => {
   // registering handler using the EchoMem handler
-  container.register(Types.Repos.Echo, { useClass: EchoMem })
+  const echo = new EchoMem()
+  container.register(Types.Repos.Echo, { useValue: echo })
 }

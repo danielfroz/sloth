@@ -8,7 +8,7 @@ import {
   MiddlewareCtx,
   container
 } from "@danielfroz/sloth";
-import { Application, Context, Next, Router } from "jsr:@oak/oak@17.1.4";
+import { Application, Context, Next, Router } from "jsr:@oak/oak@17.2.0";
 import { Application as SlothApplication } from "../mod.ts";
 
 const MOD = '@danielfroz/sloth/oak'

@@ -1,4 +1,4 @@
-import { ConsoleLog, Log } from "@danielfroz/slog";
+import { JsonLog, Log } from "@danielfroz/slog";
 import { container } from "./Container.ts";
 import { Controller } from './Controller.ts';
 import { type Framework } from "./Framework.ts";
@@ -67,7 +67,7 @@ export class Application {
      */
     Application.log = props.log ?
       props.log.child({ sloth: true }):
-      new ConsoleLog({ init: { mod: '@danielfroz/sloth' }})
+      new JsonLog({ init: { mod: '@danielfroz/sloth' }})
   }
 
   get app(): any {
