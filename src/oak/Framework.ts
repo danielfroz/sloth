@@ -64,9 +64,13 @@ export class OakFramework implements Framework<Application> {
         }
         catch(error: Error | any) {
           if(error instanceof Errors.ArgumentError) {
-            log.error({
+            log.error(error.stack ? {
               sid: rmeta.sid,
-              msg: `bad request; error: ${error.message}`
+              msg: `bad request; ${error.message}`,
+              stack: error.stack
+            }: {
+              sid: rmeta.sid,
+              msg: `bad request; ${error.message}`
             })
             ctx.response.status = 400
             ctx.response.body = {
@@ -127,23 +131,6 @@ export class OakFramework implements Framework<Application> {
                 message: error.message,
               }
             }
-          }
-          else if(error instanceof Errors.CodeDescriptionError) {
-            log.error({
-              sid: rmeta.sid,
-              code: error.code,
-              description: error.description,
-              msg: error.message,
-            })
-            ctx.response.status = 500,
-            ctx.response.body = {
-              ...rmeta,
-              error: {
-                code: error.code,
-                message: error.message,
-              }
-            }
-            return
           }
           else {
             log.error(error.stack ? {

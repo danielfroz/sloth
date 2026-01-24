@@ -1,7 +1,7 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@danielfroz/slog@0.3.1": "0.3.1",
+    "jsr:@danielfroz/slog@0.3.2": "0.3.2",
     "jsr:@oak/commons@1": "1.0.1",
     "jsr:@oak/oak@17.2.0": "17.2.0",
     "jsr:@std/assert@1": "1.0.16",
@@ -16,8 +16,8 @@
     "npm:path-to-regexp@^6.3.0": "6.3.0"
   },
   "jsr": {
-    "@danielfroz/slog@0.3.1": {
-      "integrity": "0a7d1d3628b2e34d8848d5070beec7acef5a1b1045170267c68451ab4c25389e"
+    "@danielfroz/slog@0.3.2": {
+      "integrity": "761c37d5d121596b5deb66f3a05fa4b1034e7b65853cc04d7cb1f8e4f8faf7c0"
     },
     "@oak/commons@1.0.1": {
       "integrity": "889ff210f0b4292591721be07244ecb1b5c118742f5273c70cf30d7cd4184d0c",
@@ -80,7 +80,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@danielfroz/slog@0.3.1",
+      "jsr:@danielfroz/slog@0.3.2",
       "jsr:@oak/oak@17.2.0",
       "jsr:@std/assert@1.0.9",
       "jsr:@std/testing@1.0.6"
