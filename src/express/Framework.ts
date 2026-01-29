@@ -10,15 +10,19 @@ import {
   container
 } from "@danielfroz/sloth";
 import express, { NextFunction, Request, Response } from 'npm:express@4.21.2';
+import multer from 'npm:multer@2.0.2';
 
 const MOD = '@danielfroz/sloth/express'
 
 export class ExpressFramework implements Framework<express.Application> {
   private readonly application = express()
 
+  private readonly upload = multer()
+
   constructor() {
     this.application.use(express.json())
     this.application.use(express.urlencoded({ extended: true }))
+    this.application.use(this.upload.any())
   }
 
   app(): express.Application {
@@ -49,7 +53,19 @@ export class ExpressFramework implements Framework<express.Application> {
             throw new Error(`handler not resolved with type: ${r.type}`)
           }
 
-          const req = preq.body as Base
+          const obj: Record<string, unknown> = { ...preq.body }
+          const files = preq.files as Express.Multer.File[] | undefined
+          if(files && files.length > 0) {
+            for(const file of files) {
+              const base64 = file.buffer.toString('base64')
+              obj[file.fieldname] = {
+                name: file.originalname,
+                type: file.mimetype,
+                content: base64
+              }
+            }
+          }
+          const req = obj as unknown as Base
           rmeta.id = req.id
           rmeta.sid = req.sid
 

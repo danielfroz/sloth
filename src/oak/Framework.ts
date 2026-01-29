@@ -44,7 +44,34 @@ export class OakFramework implements Framework<Application> {
             throw new Error(`handler not resolved with type: ${r.type}`)
           }
 
-          const req = await ctx.request.body.json() as Base
+          const contentType = ctx.request.headers.get('content-type') ?? ''
+          let req: Base
+          if(contentType.includes('multipart/form-data')) {
+            const formData = await ctx.request.body.formData()
+            const obj: Record<string, unknown> = {}
+            for(const [key, value] of formData.entries()) {
+              if(value instanceof File) {
+                const buffer = await value.arrayBuffer()
+                const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+                obj[key] = {
+                  name: value.name,
+                  type: value.type,
+                  content: base64
+                }
+              }
+              else {
+                obj[key] = value
+              }
+            }
+            req = obj as unknown as Base
+          }
+          else if(contentType.includes('application/x-www-form-urlencoded')) {
+            const form = await ctx.request.body.form()
+            req = Object.fromEntries(form.entries()) as unknown as Base
+          }
+          else {
+            req = await ctx.request.body.json() as Base
+          }
           rmeta.id = req.id
           rmeta.sid = req.sid
 
