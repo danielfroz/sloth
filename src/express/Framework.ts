@@ -54,7 +54,7 @@ export class ExpressFramework implements Framework<express.Application> {
           }
 
           const obj: Record<string, unknown> = { ...preq.body }
-          const files = preq.files as Express.Multer.File[] | undefined
+          const files = preq.files as multer.File[] | undefined
           if(files && files.length > 0) {
             for(const file of files) {
               const base64 = file.buffer.toString('base64')
