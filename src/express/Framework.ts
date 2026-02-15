@@ -12,8 +12,6 @@ import {
 import express, { NextFunction, Request, Response } from 'npm:express@4.21.2';
 import multer from 'npm:multer@2.0.2';
 
-const MOD = '@danielfroz/sloth/express'
-
 export class ExpressFramework implements Framework<express.Application> {
   private readonly application = express()
 
@@ -85,11 +83,13 @@ export class ExpressFramework implements Framework<express.Application> {
           if(error instanceof Errors.ArgumentError) {
             log.error(error.stack ? {
               sid: rmeta.sid,
-              msg: `bad request; ${error.message}`,
+              msg: 'bad request',
+              arg: error.message,
               stack: error.stack
             }: {
               sid: rmeta.sid,
-              msg: `bad request; ${error.message}`
+              msg: 'bad request',
+              arg: error.message
             })
             return await pres.status(400).json({
               ...rmeta,
@@ -116,16 +116,20 @@ export class ExpressFramework implements Framework<express.Application> {
             })
           }
           else if(error instanceof Errors.AuthError) {
-            log.error({
+            log.error(error.description ? {
               sid: rmeta.sid,
               code: error.code,
-              description: error.description,
               msg: error.message,
+              description: error.description
+            }: {
+              sid: rmeta.sid,
+              code: error.code,
+              msg: error.message
             })
             return await pres.status(401).json({
               ...rmeta,
               error: {
-                code: 'unauthorized',
+                code: error.code,
                 message: error.message,
               }
             })
@@ -147,11 +151,11 @@ export class ExpressFramework implements Framework<express.Application> {
           else {
             log.error(error.stack ? {
               sid: rmeta.sid,
-              msg: `service.error: ${error.message}`,
+              msg: error.message,
               stack: error.stack
             }: {
               sid: rmeta.sid,
-              msg: `service.error: ${error.message}`
+              msg: error.message,
             })
             return await pres.status(500).json({
               ...rmeta,

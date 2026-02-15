@@ -1,4 +1,5 @@
 import {
+  Application,
   type Base,
   BaseResult,
   type Controller,
@@ -8,15 +9,12 @@ import {
   MiddlewareCtx,
   container
 } from "@danielfroz/sloth";
-import { Application, Context, Next, Router } from "jsr:@oak/oak@17.2.0";
-import { Application as SlothApplication } from "../mod.ts";
+import { Application as OakApplication, Context, Next, Router } from "jsr:@oak/oak@17.2.0";
 
-const MOD = '@danielfroz/sloth/oak'
+export class OakFramework implements Framework<OakApplication> {
+  private readonly application = new OakApplication()
 
-export class OakFramework implements Framework<Application> {
-  private readonly application = new Application()
-
-  app(): Application {
+  app(): OakApplication {
     return this.application
   }
 
@@ -34,7 +32,7 @@ export class OakFramework implements Framework<Application> {
         '/'
       const url = `${base}${endpoint}`
       router.post(url, async (ctx: Context) => {
-        const log = SlothApplication.log.child({ handler: url })
+        const log = Application.log.child({ handler: url })
 
         // this allow to catch the ID and SID from the request to pass along the error response
         const rmeta: Partial<BaseResult> = {}
@@ -93,11 +91,13 @@ export class OakFramework implements Framework<Application> {
           if(error instanceof Errors.ArgumentError) {
             log.error(error.stack ? {
               sid: rmeta.sid,
-              msg: `bad request; ${error.message}`,
+              msg: 'bad request',
+              arg: error.message,
               stack: error.stack
             }: {
               sid: rmeta.sid,
-              msg: `bad request; ${error.message}`
+              msg: 'bad request',
+              arg: error.message
             })
             ctx.response.status = 400
             ctx.response.body = {
@@ -128,17 +128,21 @@ export class OakFramework implements Framework<Application> {
             return
           }
           else if(error instanceof Errors.AuthError) {
-            log.error({
+            log.error(error.description ? {
               sid: rmeta.sid,
               code: error.code,
-              description: error.description,
+              msg: error.message,
+              description: error.description
+            }: {
+              sid: rmeta.sid,
+              code: error.code,
               msg: error.message
             })
             ctx.response.status = 401,
             ctx.response.body = {
               ...rmeta,
               error: {
-                code: 'unauthorized',
+                code: error.code,
                 message: error.message,
               }
             }
@@ -162,11 +166,11 @@ export class OakFramework implements Framework<Application> {
           else {
             log.error(error.stack ? {
               sid: rmeta.sid,
-              msg: `service.error: ${error.message}`,
+              msg: error.message,
               stack: error.stack
             }: {
               sid: rmeta.sid,
-              msg: `service.error: ${error.message}`
+              msg: error.message,
             })
             ctx.response.status = 500
             ctx.response.body = {
@@ -182,7 +186,7 @@ export class OakFramework implements Framework<Application> {
       })
 
       this.application.use(router.routes())
-      SlothApplication.log.debug({ msg: `registered @Controller ${url} -> ${r.route.handler.name}` })
+      Application.log.debug({ msg: `registered @Controller ${url} -> ${r.route.handler.name}` })
     }
   }
 
@@ -192,7 +196,7 @@ export class OakFramework implements Framework<Application> {
       await m(() => ctx, () => next)
     }
     this.application.use(mid)
-    SlothApplication.log.debug(`registered @Middleware: ${middleware.name}`)
+    Application.log.debug(`registered @Middleware: ${middleware.name}`)
   }
 
   async listen(args?: Framework.Listen): Promise<void> {
