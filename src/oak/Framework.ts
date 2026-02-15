@@ -128,16 +128,7 @@ export class OakFramework implements Framework<OakApplication> {
             return
           }
           else if(error instanceof Errors.AuthError) {
-            log.error(error.description ? {
-              sid: rmeta.sid,
-              code: error.code,
-              msg: error.message,
-              description: error.description
-            }: {
-              sid: rmeta.sid,
-              code: error.code,
-              msg: error.message
-            })
+            log.error({ sid: rmeta.sid, code: error.code, msg: error.message })
             ctx.response.status = 401,
             ctx.response.body = {
               ...rmeta,

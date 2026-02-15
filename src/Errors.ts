@@ -28,7 +28,7 @@ export class ApiError extends Error {
 }
 
 export class AuthError extends Error {
-  constructor(readonly code: string, message: string, readonly description = undefined) {
+  constructor(readonly code: string, message: string) {
     super(message)
   }
 }

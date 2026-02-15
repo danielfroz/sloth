@@ -116,16 +116,7 @@ export class ExpressFramework implements Framework<express.Application> {
             })
           }
           else if(error instanceof Errors.AuthError) {
-            log.error(error.description ? {
-              sid: rmeta.sid,
-              code: error.code,
-              msg: error.message,
-              description: error.description
-            }: {
-              sid: rmeta.sid,
-              code: error.code,
-              msg: error.message
-            })
+            log.error({ sid: rmeta.sid, code: error.code, msg: error.message })
             return await pres.status(401).json({
               ...rmeta,
               error: {
