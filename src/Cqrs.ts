@@ -1,10 +1,12 @@
 export interface Base {
   id: string
   sid: string
+  author?: string
 }
 export interface BaseResult {
   id: string
   sid: string
+  author?: string
   error?: {
     code: string
     message: string

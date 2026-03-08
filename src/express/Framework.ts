@@ -131,7 +131,7 @@ export class ExpressFramework implements Framework<express.Application> {
               code: error.code,
               msg: error.message,
             })
-            return await pres.status(500).json({
+            return await pres.status(422).json({
               ...rmeta,
               error: {
                 code: error.code,

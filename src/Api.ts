@@ -1,13 +1,54 @@
 import { Errors } from "./mod.ts";
 
+type HeadersPredicate = (body?: unknown) => Record<string, string>
+
 export interface ApiInitOptions {
-  base?: string
   throwOnError: boolean
+  base?: string
+  /**
+   * Allows to add custom header generation logic based on request body.
+   * Useful for middleware processing; as body is not necessary for headers parsing
+   * 
+   * @example
+   * ```ts
+   * const api = new ApiFetch().init({
+   *  base: 'https://base_service_com/api',
+   *  throwOnError: true,
+   *  headers: function (body: unknown) {
+   *    const { authorId, correlationId } = body as { authorId: string, correlationId: string }
+   *    return {
+   *      'X-Author-ID': authorId,
+   *      'X-Correlation-ID': correlationId
+   *    }
+   *  },
+   * })
+   * ```
+   */
+  headers?: HeadersPredicate
 }
 
 export interface ApiGetOptions {
+  /**
+   * Request url. Url can be absolute or relative
+   * 
+   * @example Relative request
+   * ```ts
+   * const { user } = api.get<Cqrs.QueryResult>({ url: `/user/${user.id}` })
+   * ```
+   * 
+   * @example Absolute request
+   * ```ts
+   * const { user } = api.get<Cqrs.QueryResult>({
+   *   url: 'https://www.example.com/api/user/get',
+   * })
+   * ```
+   */
   url: string
-  headers?: Record<string, string>
+  /**
+   * Headers or HeadersPredicate.
+   * For headers predicate, @see ApiInitOptions.headers
+   */
+  headers?: Record<string, string>|HeadersPredicate
 }
 
 export interface ApiPostOptions extends ApiGetOptions {
@@ -26,9 +67,9 @@ export class ApiFetch implements Api {
   init(options?: ApiInitOptions): Api {
     let base = options?.base
     if(base && base.endsWith('/')) {
-      base = base.substring(0, base.length - 2)
+      base = base.substring(0, base.length - 1)
     }
-    this.options = { base, throwOnError: options?.throwOnError ?? true }
+    this.options = { base, throwOnError: options?.throwOnError ?? true, headers: options?.headers }
     return this
   }
 
@@ -46,29 +87,44 @@ export class ApiFetch implements Api {
   }
 
   get<R extends object>(options: ApiGetOptions): Promise<R> {
+    const initOptions = this.options
     return new Promise(async (resolve, reject) => {
       if(!options.url)
         throw new Errors.ArgumentError('url')
 
       const url = this._url(options.url)
-      if(!options.headers) {
-        options.headers = {} as Record<string,string>
+      const headers = {} as Record<string,string>
+      if(options.headers) {
+        let records = typeof(options.headers) === 'function' ? options.headers(): options.headers
+        if(records) {
+          for(const [ key, value ] of Object.entries(records)) {
+            headers[key] = value
+          }
+        }
       }
-      options.headers['Accept'] = 'application/json'
-      options.headers['Content-Type'] = 'application/json'
+      if(initOptions?.headers) {
+        const records = initOptions.headers()
+        if(records) {
+          for(const [ key, value ] of Object.entries(records)) {
+            headers[key] = value
+          }
+        }
+      }
+      headers['Accept'] = 'application/json'
+      headers['Content-Type'] = 'application/json'
       try {
         const res = await fetch(url, {
           method: 'GET',
-          headers: options.headers,
+          headers,
         })
         const json = await res.json()
         if(res.status !== 200 && res.status !== 201) {
           if(json.error?.code) {
-            throw new Errors.ApiError('POST', url, res.status, json.error?.code, json.error?.message)
+            throw new Errors.ApiError('GET', url, res.status, json.error?.code, json.error?.message)
           }
           else {
             // generic error code
-            throw new Errors.ApiError('POST', url, res.status, 'service', JSON.stringify(json))
+            throw new Errors.ApiError('GET', url, res.status, 'service', JSON.stringify(json))
           }
         }
         return resolve(json as R)
@@ -77,12 +133,13 @@ export class ApiFetch implements Api {
         if(error.code)
           return reject(error)
         // generic error
-        return reject(new Errors.ApiError('POST', url, 500, 'service', error.message))
+        return reject(new Errors.ApiError('GET', url, 500, 'service', error.message))
       }
     })
   }
 
   post<R extends object>(options: ApiPostOptions): Promise<R> {
+    const initOptions = this.options
     return new Promise(async (resolve, reject) => {
       if(!options.url)
         throw new Errors.ArgumentError('url')
@@ -90,17 +147,30 @@ export class ApiFetch implements Api {
         throw new Errors.ArgumentError('body')
 
       const url = this._url(options.url)
-      if(!options.headers) {
-        options.headers = {} as Record<string,string>
+      const headers = {} as Record<string,string>
+      if(options.headers) {
+        const records = typeof(options.headers) === 'function' ? options.headers(): options.headers;
+        if(records) {
+          for(const [ key, value ] of Object.entries(records)) {
+            headers[key] = value
+          }
+        }
       }
-      
-      options.headers['Accept'] = 'application/json'
-      options.headers['Content-Type'] = 'application/json'
+      if(initOptions?.headers) {
+        const records = initOptions.headers(options.body)
+        if(records) {
+          for(const [ key, value ] of Object.entries(records)) {
+            headers[key] = value
+          }
+        }
+      }
+      headers['Accept'] = 'application/json'
+      headers['Content-Type'] = 'application/json'
       try {
         const res = await fetch(url, {
           method: 'POST',
           body: JSON.stringify(options.body),
-          headers: options.headers,
+          headers,
         })
         const json = await res.json()
         if(res.status !== 200 && res.status !== 201) {

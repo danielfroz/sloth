@@ -145,7 +145,7 @@ export class OakFramework implements Framework<OakApplication> {
               code: error.code,
               msg: error.message,
             })
-            ctx.response.status = 500,
+            ctx.response.status = 422,
             ctx.response.body = {
               ...rmeta,
               error: {
@@ -153,6 +153,7 @@ export class OakFramework implements Framework<OakApplication> {
                 message: error.message,
               }
             }
+            return
           }
           else {
             log.error(error.stack ? {
