@@ -48,7 +48,10 @@ const registry = new Array<ProviderRegistration>();
  * export class OrderMongo implements OrderRepository { … }
  * ```
  */
-export function Provide<T extends object>(token: Token<T>, options?: ProvideOptions) {
+export function Provide<T extends object>(
+  token: Token<T>,
+  options?: ProvideOptions,
+): <Class extends Constructor<T>>(value: Class, context: ClassDecoratorContext<Class>) => void {
   // Generic over the concrete class so an implementation (e.g. EchoMem) can be
   // bound to an interface token (Type<EchoRepository>) — the class only has to be
   // assignable to the token's type.
