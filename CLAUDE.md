@@ -45,9 +45,15 @@ resolution, request/response mapping, middleware, and error handling.
     pipeline: pushes `before` middlewares → manual `controllers` → discovered
     `@Route` controllers (unless `discover:false`) → `after` middlewares. Sugar
     over push()/routes(). `Pipeline` interface is exported.
-  - `app.start({ port, hostname, callback })` — wires handlers into the framework
-    and listens. `ServiceBuilder` (`addClass`/`addValue`) exists but the
-    `app.Services` getter is currently commented out.
+  - `app.Providers` (`ProviderBuilder`) — `.discover()` registers every
+    `@Provide`/`@Repository`/`@Service`-decorated class. (Replaces the old
+    `ServiceBuilder`.) For decorator-free/one-off bindings use `container.register`.
+  - `app.Inits` (`InitRunner`) — `await app.Inits.run(...InitClasses)` resolves each
+    `Initializer` through the container (constructor DI works) and `await`s `init()`
+    **in order**; a throwing init aborts. For the ordered I/O bootstrap.
+  - `app.warmup()` and `app.start({ port, hostname, callback, warmup? })` — `start`
+    wires handlers and listens; it runs `warmup()` **by default** (opt out with
+    `{ warmup: false }`).
 - **`src/Framework.ts`** + **`src/oak/Framework.ts`**, **`src/express/Framework.ts`**
   — adapter interface (`createController`, `createMiddleware`, `listen`). The
   adapter resolves the handler from DI, parses the body (json / urlencoded /
@@ -62,38 +68,48 @@ resolution, request/response mapping, middleware, and error handling.
   Apply globally via `app.Handlers.pipeline({ before, after })` or scope to one
   route via `@Route(path, { use: [...] })` / `Controller.add({ ..., middlewares })`.
 - **`src/di/`** — a small DI container (originally a di-wise fork, since slimmed
-  to the surface Sloth actually uses; 6 files). Exposed via `import { DI } from
-  '@danielfroz/sloth'`: `inject(token)`, `lazy(token)`, `Scope` (`Singleton` |
-  `Transient`), `Type<T>(name)` tokens, `container`, `createContainer`, and the
+  to the surface Sloth actually uses; 7 files). Exposed via `import { DI } from
+  '@danielfroz/sloth'`: `inject(token)`, `Scope` (`Singleton` | `Transient`),
+  `Type<T>(name)` tokens, `container`, `createContainer`, and the
   `Provider`/`Constructor`/`Token` types. `container` singleton lives in
   `src/Container.ts`. The container is `register(token, provider, options?)` /
-  `resolve(token)` / `has(token)` / `warmup()`; one registration per token (no
-  multi-provider/`resolveAll`), synchronous resolution with an ambient
+  `resolve(token)` / `inject(token)` / `has(token)` / `warmup()`; one registration
+  per token (no multi-provider/`resolveAll`), synchronous resolution with an ambient
   current-container + a `Set` for circular detection. **Default scope is
-  `Singleton`** when `register` omits `{ scope }` (matches `Controller`/`@Route`/
-  `ServiceBuilder` defaults). Use `{ scope: DI.Scope.Transient }` for the rare dep
-  that must be a fresh instance per resolve.
-  - **`DI.lazy(token)`** (`src/di/inject.ts`) — like `inject`, but returns a
-    transparent proxy and defers resolution to **first member access** (resolved
-    once, memoized; methods bound to the real instance so `#private` fields and
-    fluent `return this` work). Swap `inject`→`lazy` on **one edge** of a
-    circular dependency to break it: the owner finishes constructing (cached if a
-    singleton) before the cycle closes, so the back-edge sees the existing
-    instance instead of throwing `circular dependency detected`. Also removes
-    registration-order sensitivity (token need only be registered before first
-    *use*, not before injection). Drop-in: call sites keep `this.dep.method()`.
-  - **`container.warmup()`** / **`app.warmup()`** / **`app.start({ warmup: true
-    })`** — eagerly resolves every registered class/factory token once so a
-    missing/misconfigured dependency fails at **boot** instead of on the first
-    request. Singletons are constructed+cached, transients validated+discarded,
-    value providers skipped; failures aggregate into one `Errors.InitError`. Safe
-    with `lazy` (proxies don't recurse; each target token is validated on its
-    own). Opt-in — `start()` does not warm up unless asked.
-  - **Removed in 0.3.0** (were unused by every service and by the framework):
-    the `@Injectable`/`@Scoped`/`@AutoRegister`/`@Inject`/`@InjectAll`
-    decorators, `injectAll`/`injectBy`/`Injector`, `resolveAll`, multi-token
-    `inject(a, b, …)`, child/parent containers, container middleware, `Build`/
-    `Value` builder tokens, `autoRegister`, and `Type.inter`/`union`.
+  `Singleton`** when `register` omits `{ scope }`. Use `{ scope: DI.Scope.Transient }`
+  for the rare dep that must be a fresh instance per resolve.
+  - **`inject` is lazy by default** (`src/di/inject.ts` + `container.inject`):
+    a **class** dependency (or an unregistered `Constructor`) is returned as a
+    transparent proxy (`src/di/proxy.ts`) constructed on first use — so circular
+    dependencies and registration order never matter, with **no annotation**. A
+    **value/factory** dependency is resolved eagerly and returned directly (so
+    primitives — secret strings, URIs — work; proxies can't wrap primitives). An
+    unregistered **`Type`** token throws at inject time. There is **no separate
+    `lazy`** — `inject` is the lazy one. `container.resolve` stays eager (used by
+    `warmup`, `Inits`, per-request handler resolution); an unregistered
+    `Constructor` resolves as Transient (di-wise behavior — many services resolve
+    handler classes this way).
+  - **`warmup`** (`container.warmup()` / `app.warmup()`) — eagerly resolves every
+    registered class/factory token once; runs in `start()` **by default** (opt out
+    `{ warmup: false }`). Because lazy `inject` does an eager *lookup*, missing
+    wiring (unregistered token) still fails here at **boot**. Singletons
+    constructed+cached, transients validated+discarded, values skipped; failures
+    aggregate into one `Errors.InitError`.
+  - Residual cost of lazy-by-default: object deps are proxies → tiny per-access
+    overhead (bound methods cached) and `dep instanceof Class` is `false`. Values
+    unaffected.
+  - **Removed in 0.3.0** (unused by every service and the framework): the
+    `@Injectable`/`@Scoped`/`@AutoRegister`/`@Inject`/`@InjectAll` decorators,
+    `injectAll`/`injectBy`/`Injector`, `resolveAll`, multi-token `inject(a, b, …)`,
+    child/parent containers, container middleware, `Build`/`Value` builder tokens,
+    `autoRegister`, `Type.inter`/`union`, and the standalone `lazy`.
+- **`src/Provide.ts`** — `@Provide(token, { scope? })` + `@Repository`/`@Service`
+  aliases (mirrors `Route.ts`): records `(token, ctor, scope)` in a module-level
+  registry at import time; `registerProviders(c?)` registers them (via
+  `app.Providers.discover()`), `clearProviders()` for tests. Import the provider
+  barrel (side-effect) before discovery so the decorators have run.
+- **`src/Initializer.ts`** — `Initializer { init(): Promise<void> | void }`; the
+  unit of ordered imperative bootstrap, run via `app.Inits.run(...)`.
 - **`src/Errors.ts`** (exported as `Errors` namespace) — `ArgumentError(msg)`,
   `InitError(msg)`, `AuthError(code, message)`, `CodeError(code, msg)`,
   `ApiError(method, url, status, code, message)`. **`AuthError` takes 2 args**
@@ -124,8 +140,8 @@ README when the public API changes.
 src/
   mod.ts            # public barrel — all exports gated here
   Application.ts Controller.ts Route.ts Cqrs.ts Framework.ts Middleware.ts
-  Errors.ts Api.ts Container.ts
-  di/               # small DI container (slimmed di-wise fork)
+  Provide.ts Initializer.ts Errors.ts Api.ts Container.ts
+  di/               # small DI container (slimmed di-wise fork; incl. proxy.ts for lazy inject)
   oak/  express/    # framework adapters (own mod.ts each)
 test/               # framework unit tests (deno test)
 examples/
@@ -136,9 +152,12 @@ releases/           # per-release notes (one MD per tag) mirroring GitHub releas
 .claude/skills/     # community skills: sloth-migrate, sloth-scaffold (excluded from JSR publish)
 ```
 
-Example layout (`examples/*/src/`): `main.ts` (bootstrap order), `app.ts`,
-`types.ts` (DI `Type` tokens), `handlers/cqrs/<domain>/`, `models/`,
-`repositories/`, `middlewares/`, `inits/` (Log, Repos, framework, Handlers).
+Example layout (`examples/*/src/`): `main.ts` (full bootstrap — `Providers.discover()`
++ `Inits.run()` + `pipeline()` + `start()`), `types.ts` (DI `Type` tokens),
+`handlers/cqrs/<domain>/` (`@Route`), `models/`, `repositories/mem/` (`@Repository`),
+`services/` (`@Service` — `GithubService` calls the GitHub API via `ApiFetch` and
+maps the response into a Result), `middlewares/`, `inits/` (`LogInit`, `ApiInit`
+`Initializer`s). Both `examples/oak` and `examples/express` carry the same set.
 
 ## Commands
 

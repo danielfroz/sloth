@@ -1,20 +1,19 @@
-import { AuthMiddleware } from "@/middlewares/index.ts";
 import { EchoSaveCommand, EchoSaveCommandResult } from "@/models/cqrs/echo/index.ts";
 import { Types } from '@/types.ts';
 import { CommandHandler, DI, Errors, Route } from "@danielfroz/sloth";
 
 /**
- * This is a protected handler.
- * Only authorized requests are allowed to save information to the system.
+ * A protected write handler.
  *
- * Auth is declared as a ROUTE-SCOPED middleware via @Route({ use: [...] }), so it
- * runs only for this endpoint — `/echo/get` stays public. The middleware passes
- * the token down via ctx.state, and this handler still enforces cmd.auth, giving
- * both Authn (middleware) and Authz (handler).
+ * Auth is GLOBAL (see main.ts: `before: [ auth({ except: ['/repo/get'] }) ]`), so
+ * every route — including this one — requires a token; only `/repo/get` is public.
+ * The middleware passes the token down via ctx.state, and this handler also checks
+ * `cmd.auth`, giving both Authn (middleware) and Authz (handler).
  *
- * The route is declared inline with @Route; default scope is Singleton.
+ * (For the inverse — auth on only a few routes — scope it instead with
+ * `@Route('/echo/save', { use: [auth()] })`; see the README "Middleware".)
  */
-@Route('/echo/save', { use: [AuthMiddleware] })
+@Route('/echo/save')
 export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSaveCommandResult> {
   constructor(
     private readonly echoRepo = DI.inject(Types.Repos.Echo)

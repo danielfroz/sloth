@@ -3,17 +3,15 @@ import { Types } from '@/types.ts';
 import { CommandHandler, DI, Errors, Route } from "@danielfroz/sloth";
 
 /**
- * This is a protected handler — only authorized requests may write.
+ * A protected write handler.
  *
- * The endpoint is declared with @Route (no controllers/*.ts). Auth is applied
- * globally in the pipeline `before` (see inits/App.ts): the AuthMiddleware passes
- * the token down via res.locals, and this handler additionally checks cmd.auth,
- * giving both Authn (middleware) and Authz (handler).
+ * Auth is GLOBAL (see main.ts: `before: [ auth({ except: ['/repo/get'] }) ]`), so
+ * every route — including this one — requires a token; only `/repo/get` is public.
+ * The middleware passes the token down via res.locals, and this handler also checks
+ * `cmd.auth`, giving both Authn (middleware) and Authz (handler).
  *
- * (For endpoint-specific auth you could instead scope it with
- * @Route('/echo/save', { use: [AuthMiddleware] }) — see the README "Middleware".)
- *
- * @see middlewares/Auth.ts for the middleware implementation.
+ * (For the inverse — auth on only a few routes — scope it instead with
+ * `@Route('/echo/save', { use: [auth()] })`; see the README "Middleware".)
  */
 @Route('/echo/save')
 export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSaveCommandResult> {

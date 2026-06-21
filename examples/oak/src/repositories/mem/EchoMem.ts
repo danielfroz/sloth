@@ -1,6 +1,11 @@
 import { Echo } from "@/models/dtos/index.ts";
+import { Types } from "@/types.ts";
+import { Repository } from "@danielfroz/sloth";
 import { EchoRepository } from "../index.ts";
 
+// @Repository binds this implementation to its token at import time; the app
+// registers it via app.Providers.discover() — no inits/Repos.ts to maintain.
+@Repository(Types.Repos.Echo)
 export class EchoMem implements EchoRepository {
   private readonly map = new Map<string, string>()
 

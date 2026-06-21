@@ -1,4 +1,2 @@
-export * as App from './App.ts'
-export * as Log from './Log.ts'
-export * as Repos from './Repos.ts'
-
+export { ApiInit } from './Api.ts'
+export { LogInit } from './Log.ts'

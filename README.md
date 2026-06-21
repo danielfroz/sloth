@@ -240,60 +240,141 @@ For a **stateless** handler, `Singleton` and `Transient` behave identically, and
 genuinely must hold per-request state; staying stateless is the better fix. Scope
 is set where you map the route (see [Defining endpoints](#defining-endpoints)).
 
-## Lazy injection (circular dependencies)
+## Dependency injection (lazy by default)
 
-Dependencies wired with `DI.inject(token)` are resolved **eagerly**, the moment
-the owner is constructed. When two services depend on each other, that recursion
-has nowhere to bottom out and the container throws `circular dependency detected`.
+`DI.inject(token)` is **lazy by default**, and that one rule removes a whole class
+of problems — circular dependencies and "register things in the right order":
 
-`DI.lazy(token)` is the fix. It returns a transparent proxy and defers resolution
-until the **first time you use the dependency** (resolved once, then memoized).
-Because the owner finishes constructing before the cycle closes, it is cached as a
-singleton — so when the other side resolves back to it, it gets the existing
-instance instead of recursing.
+- A **class** dependency is returned as a transparent proxy that constructs on
+  **first use**. So two services can depend on each other and it just works — the
+  owner finishes constructing (and is cached) before the cycle closes, with **no
+  annotation**:
 
-Swap `inject` → `lazy` on **one edge** of the cycle. Call sites don't change:
+  ```ts
+  class A {
+    constructor(private readonly b = DI.inject(Types.B)) {} // plain inject
+    run() { return this.b.help() }                          // B built here, on first use
+  }
+  class B {
+    constructor(private readonly a = DI.inject(Types.A)) {} // mutual — no special handling
+    help() { /* ... */ }
+  }
+  ```
 
-```ts
-class A {
-  constructor(private readonly b = DI.lazy(Types.B)) {}   // ← lazy breaks the cycle
-  run() { return this.b.help() }                          // B resolved here, on first use
-}
+- A **value / factory** dependency (a Log, a Mongo `Database`, a secret string, a
+  URI) is resolved **eagerly** and returned directly — primitives work, because a
+  proxy can't wrap a primitive.
 
-class B {
-  constructor(private readonly a = DI.inject(Types.A)) {} // ← eager is fine on the other edge
-  help() { /* ... */ }
-}
-```
+- An **unregistered token** throws at inject time — which, under `warmup` (below),
+  means **at boot**, not on some later request.
 
 Notes:
 
-- Only the **injection** is deferred — don't *call* a lazy dependency inside the
-  constructor body (that would resolve it during construction and reintroduce the
-  cycle). Using it in `handle()` / methods is exactly right.
-- Method members are bound to the resolved instance, so `#private` fields and
-  fluent `return this` work normally.
-- As a bonus, `lazy` removes registration-order sensitivity: the token only needs
-  to be registered before it is first *used*, not before it is injected.
+- Don't *call* a dependency inside the constructor body — using it in `handle()` /
+  methods is what you want (and what keeps cycles from materialising early).
+- Methods are bound to the real instance (cached), so `#private` fields and fluent
+  `return this` work. The cost of lazy object deps is a tiny per-access proxy hop
+  and `dep instanceof Class` being `false`; values/primitives are unaffected.
+- Registration order is irrelevant — a token only has to be registered before it's
+  first *used*.
 
 ### Fail fast at boot — `warmup()`
 
-Because `inject` resolves on construction and `lazy` resolves on first use, a
-missing or misconfigured dependency surfaces *when it's first touched* — for a
-lazy edge, possibly on a request rather than at startup. `warmup()` restores
-fail-fast: it eagerly resolves every registered class/factory token once, so the
-whole graph is validated (and singletons pre-built) before you serve traffic.
+`warmup()` eagerly resolves every registered class/factory token once, so the whole
+graph is validated (and singletons pre-built) before you serve traffic. It runs in
+`start()` **by default**:
 
 ```ts
-await app.start({ port: 3000, warmup: true }) // validate the graph, then listen
-// or call it yourself once everything is registered:
-app.warmup() // { resolved: <count> }  — throws Errors.InitError listing failures
+await app.start({ port: 3000 })             // warmup runs automatically
+await app.start({ port: 3000, warmup: false }) // …unless you opt out
+app.warmup() // { resolved: <count> } — or throws Errors.InitError listing failures
 ```
 
-Singletons are constructed and cached; transients are validated and discarded;
-value providers are skipped. It's safe alongside `lazy` (proxies don't recurse —
-each target token is validated on its own). It's opt-in: `start()` does not warm
-up unless you pass `{ warmup: true }`.
+Even though `inject` is lazy, warmup catches missing wiring: constructing each
+registered class runs its constructor, and `inject`'s **lookup** is eager, so an
+unregistered/typo'd token throws here. Singletons are constructed and cached,
+transients validated and discarded, value providers skipped.
+
+## Bootstrapping a service
+
+Registration splits in two, and Sloth handles each with the right tool:
+
+- **Order-free class bindings** (repositories, services) — declare them with
+  `@Repository` / `@Service` (aliases of `@Provide`) and register them all with
+  `app.Providers.discover()`. No `inits/Repositories.ts` to maintain.
+- **Ordered I/O bootstrap** (logger, secrets, DB connection, API clients, event
+  bus) — write each as an `Initializer` and run them, in order, with
+  `app.Inits.run(...)`.
+
+```ts
+// repositories/mongo/OrderMongo.ts — binding lives on the implementation
+@Repository(Types.Repos.Order)
+export class OrderMongo implements OrderRepository { /* ... */ }
+
+// inits/Secret.ts — a unit of imperative bootstrap
+export class SecretInit implements Initializer {
+  async init() {
+    const api = new ApiFetch(); api.init({ base, throwOnError: false })
+    container.register(Types.SecretClient, { useValue: new SecretClient(api) })
+  }
+}
+
+// main.ts
+import '@/repositories/mongo/index.ts'   // side-effect: run @Repository decorators
+import '@/handlers/cqrs/index.ts'         // side-effect: run @Route decorators
+
+const app = new Application({ framework: new OakFramework() })
+app.Providers.discover()                                  // register @Repository/@Service classes
+await app.Inits.run(LogInit, SecretInit, MongoInit, ApiInit, EventsInit) // ordered bootstrap
+app.Handlers.pipeline({ before: [HealthMiddleware], after: [NotFoundMiddleware] })
+await app.start({ port: 3000 })                           // warmup (default) → listen
+```
+
+For decorator-free or one-off bindings, register directly with
+`container.register(token, { useClass | useValue | useFactory }, { scope? })` —
+the same primitive used inside initializers.
+
+### Calling an external API from a Service
+
+A `@Service` is the natural home for outbound HTTP. Register a configured
+`ApiFetch` client in an `Initializer`, inject it into the service, and map the
+upstream payload into your own DTO so handlers never see the raw shape:
+
+```ts
+// inits/Api.ts
+export class ApiInit implements Initializer {
+  init() {
+    const github = new ApiFetch().init({ base: 'https://api.github.com', throwOnError: true })
+    container.register(Types.Api.Github, { useValue: github })   // a value → injected eagerly
+  }
+}
+
+// services/GithubService.ts
+@Service(Types.Services.Github)
+export class GithubService {
+  constructor(private readonly api = DI.inject(Types.Api.Github)) {}
+  async getRepo(owner: string, name: string): Promise<Repo> {
+    const r = await this.api.get<GithubRepo>({
+      url: `/repos/${owner}/${name}`,
+      headers: { 'User-Agent': 'sloth-example' }, // GitHub requires a User-Agent
+    })
+    return { fullName: r.full_name, stars: r.stargazers_count, /* … map fields … */ }
+  }
+}
+
+// handlers/cqrs/repo/GetHandler.ts
+@Route('/repo/get')
+export class RepoGetHandler implements QueryHandler<RepoGetQuery, RepoGetQueryResult> {
+  constructor(private readonly github = DI.inject(Types.Services.Github)) {}
+  async handle({ id, sid, owner, name }: RepoGetQuery): Promise<RepoGetQueryResult> {
+    return { id, sid, repo: await this.github.getRepo(owner, name) }
+  }
+}
+```
+
+A non-2xx response throws `Errors.ApiError`, which the adapter maps to the matching
+HTTP status. The full, runnable version is in **`examples/oak`** (and `examples/express`) —
+`POST /repo/get { "owner": "danielfroz", "name": "sloth" }`.
 
 ## Upgrading
 

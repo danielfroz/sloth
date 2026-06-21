@@ -1,10 +1,11 @@
 # Migrating to Sloth 0.3.0
 
-Sloth 0.3.0 **slims the DI container** down to the surface services actually use,
-and adds two capabilities: `DI.lazy` (break circular dependencies) and
-`warmup()` (fail fast at boot). For the overwhelming majority of services the
-upgrade is **just a version bump** — the kept API (`DI.inject`, `DI.Type`,
-`DI.Scope`, `container.register`/`resolve`) is unchanged.
+Sloth 0.3.0 slims the DI container, makes **`inject` lazy by default** (circular
+dependencies and init ordering stop mattering), turns **`warmup()` on by default**,
+and adds a **cohesive bootstrap** (`@Repository`/`@Service` + `Initializer`). The
+kept API (`DI.inject`, `DI.Type`, `DI.Scope`, `container.register`/`resolve`) keeps
+its signatures; for most services the upgrade is a version bump, with the new
+bootstrap optional.
 
 ## Prerequisite
 
@@ -15,19 +16,47 @@ a split config):
 "@danielfroz/sloth": "jsr:@danielfroz/sloth@0.3.0"
 ```
 
-## Kept (no change)
+## Behavior change — `inject` is lazy by default
 
-`DI.inject(token)`, `DI.Type<T>(name)`, `DI.Scope` (`Singleton` | `Transient`),
-`container.register(token, provider, options?)` (with `useClass`/`useValue`/
-`useFactory`), and `container.resolve(token)` keep the same signatures and
-semantics.
+`DI.inject(token)` now returns a **lazy proxy for class dependencies** (constructed
+on first use) and resolves **value/factory dependencies eagerly**. The constructor
+default-param pattern is unchanged at call sites:
+
+```ts
+constructor(private readonly repo = DI.inject(Types.Repos.Order)) {}  // now lazy
+```
+
+Consequences:
+
+- **Circular dependencies just work** — no more `circular dependency detected`, no
+  annotations. (The old standalone `DI.lazy` is **removed**; `inject` is the lazy one.)
+- **Registration order is irrelevant** — a token only needs to be registered before
+  first *use*.
+- A class dependency is a proxy, so **`dep instanceof SomeClass` is `false`** and
+  object identity differs. Method calls / field access are transparent. Values and
+  primitives are eager and unaffected.
+- An **unregistered token throws at inject time** — i.e. at boot under `warmup`.
+
+If a constructor *used* a dependency in its body (rare), that now triggers
+construction there; move the usage into `handle()`/methods.
+
+## Behavior change — `warmup()` runs by default in `start()`
+
+`app.start()` now validates the whole graph (and pre-builds singletons) before
+listening. Opt out with `{ warmup: false }`. A missing/misconfigured dependency
+fails at boot instead of on a request.
+
+```ts
+await app.start({ port })                  // warmup runs
+await app.start({ port, warmup: false })   // opt out
+```
 
 ## Behavior change — default scope is now `Singleton`
 
 `container.register(token, { useClass })` **without** an explicit `{ scope }` now
 defaults to **`Singleton`** (it was `Transient` in di-wise). This aligns the bare
-`register` call with `Controller.add`, `@Route`, and `ServiceBuilder.addClass`,
-which already default to `Singleton`.
+`register` call with `Controller.add` and `@Route`, which already default to
+`Singleton`.
 
 **Practically:** a repo/service registered in `inits/*` without a scope is now a
 **single shared instance** instead of one per injecting handler.
@@ -50,23 +79,31 @@ used them. If you somehow do, here's the replacement:
 
 | Removed | Replacement |
 |---|---|
-| `@Injectable` / `@Scoped` / `@AutoRegister` / `@Inject` / `@InjectAll` | Register explicitly: `container.register(token, { useClass }, { scope })` |
+| standalone `DI.lazy(token)` | `inject` is lazy by default |
+| `@Injectable` / `@Scoped` / `@AutoRegister` / `@Inject` / `@InjectAll` | `@Repository`/`@Service` + `app.Providers.discover()`, or `container.register(...)` |
 | `injectAll` / `InjectAll` / `container.resolveAll` | Resolve a single token; model collections explicitly |
-| `injectBy` / `inject.by` / `Injector` token | `DI.lazy(token)` (cleaner circular-dependency break) |
+| `injectBy` / `inject.by` / `Injector` token | lazy `inject` (cycles work automatically) |
 | multi-token `inject(a, b, …)` ("first registered wins") | Inject one concrete token |
 | `container.createChild()` (child/parent containers) | `createContainer()` for isolated graphs (e.g. tests) |
 | container middleware (`applyMiddleware`, `resolveAllSafe`) | — |
 | `Build(...)` / `Value(...)` builder tokens | `{ useFactory }` / `{ useValue }` |
 | `Type.inter` / `Type.union` | Separate tokens |
 
-## New
+## New — cohesive bootstrap (optional, recommended)
 
-- **`DI.lazy(token)`** — transparent proxy, resolves on first use; swap
-  `inject`→`lazy` on one edge of a cycle to break it. See the README
-  **"Lazy injection"** section.
-- **`warmup()`** — `app.start({ warmup: true })`, `app.warmup()`, or
-  `container.warmup()` eagerly resolve the graph at boot so failures surface
-  early. Opt-in. See the README **"Fail fast at boot"** section.
+You can keep your existing `inits/*` + `main.ts`; or adopt the new bootstrap:
+
+- **`@Repository` / `@Service`** (aliases of `@Provide`) on implementation classes,
+  registered with **`app.Providers.discover()`** — replaces `inits/Repositories.ts`
+  / `inits/Services.ts`. For decorator-free/one-off bindings use `container.register`.
+- **`Initializer`** classes (`init(): Promise<void> | void`) run in order via
+  **`await app.Inits.run(LogInit, SecretInit, MongoInit, …)`** — replaces the
+  hand-sequenced `inits/*.ts` for imperative I/O bootstrap.
+- See the README **"Bootstrapping a service"** section for a full `main.ts`.
+
+Also: an unregistered **class** passed to `container.resolve` now constructs as
+Transient (di-wise behavior) — so `container.resolve(SomeHandlerClass)` (e.g. event
+handlers) keeps working without explicit registration.
 
 ---
 

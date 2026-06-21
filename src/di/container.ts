@@ -7,8 +7,9 @@ import {
   type Provider,
   type ValueProvider,
 } from "./provider.ts";
+import { createLazyProxy } from "./proxy.ts";
 import { Scope } from "./scope.ts";
-import type { Constructor, Token } from "./token.ts";
+import { type Constructor, isConstructor, type Token } from "./token.ts";
 
 /**
  * Registration options.
@@ -48,13 +49,32 @@ export interface Container {
   register<Value>(token: Token<Value>, provider: ValueProvider<Value>): this;
 
   /**
-   * Resolve a token to an instance.
+   * Resolve a token to an instance, **eagerly**.
    *
-   * Throws if the token is not registered, or if a circular dependency is
-   * detected during construction (use {@link lazy} to break cycles).
+   * Used by the framework (warmup, initializers, per-request handler resolution).
+   * An unregistered `Constructor` token is constructed as `Transient`; an
+   * unregistered `Type` token throws. A true cycle reached through eager
+   * resolution throws `circular dependency detected` — but `inject` (lazy by
+   * default) means cycles do not normally arise.
    */
   resolve<Instance extends object>(token: Constructor<Instance>): Instance;
   resolve<Value>(token: Token<Value>): Value;
+
+  /**
+   * Resolve a dependency for injection, **lazily by default**.
+   *
+   * - A **class** dependency (or an unregistered `Constructor`) is returned as a
+   *   transparent proxy that constructs on first use — this is what makes
+   *   circular dependencies and registration order irrelevant.
+   * - A **value** or **factory** dependency is resolved eagerly and returned
+   *   directly (so primitives — secret strings, URIs — work; they cannot be proxied).
+   * - An unregistered `Type` token throws (it can neither be constructed nor proxied),
+   *   surfacing wiring mistakes at inject time — i.e. at boot under `warmup`.
+   *
+   * Prefer the free {@link inject} helper inside constructors; this is its engine.
+   */
+  inject<Instance extends object>(token: Constructor<Instance>): Instance;
+  inject<Value>(token: Token<Value>): Value;
 
   /**
    * Whether a token is registered.
@@ -74,10 +94,11 @@ export interface Container {
   warmup(): { resolved: number };
 }
 
-// The container currently driving a synchronous resolution. `inject()` / `lazy()`
-// read this to know which container to resolve against. Set/restored around each
-// `resolve()`; correct because construction is synchronous (single-threaded, no
-// `await` between `new Class()` and its `inject()` default-param evaluation).
+// The container currently driving a synchronous resolution. The free `inject()`
+// helper reads this to know which container to resolve against. Set/restored
+// around each `resolve()`; correct because construction is synchronous
+// (single-threaded, no `await` between `new Class()` and its `inject()` default-
+// param evaluation).
 let current: Container | undefined;
 
 // @internal
@@ -105,9 +126,18 @@ export function createContainer(): Container {
     },
 
     resolve<T>(token: Token<T>): T {
-      const registration = registry.get(token) as Registration<T> | undefined;
+      let registration = registry.get(token) as Registration<T> | undefined;
       if (!registration) {
-        throw new Error(`unregistered token ${tokenName(token)}`);
+        // di-wise behavior: an unregistered class is constructed Transient. Many
+        // services resolve handler classes this way (e.g. event handlers).
+        if (isConstructor(token)) {
+          registration = {
+            provider: { useClass: token } as ClassProvider<T & object>,
+            scope: Scope.Transient,
+          };
+        } else {
+          throw new Error(`unregistered token ${tokenName(token)}`);
+        }
       }
       const previous = current;
       current = container;
@@ -116,6 +146,24 @@ export function createContainer(): Container {
       } finally {
         current = previous;
       }
+    },
+
+    inject<T>(token: Token<T>): T {
+      const registration = registry.get(token) as Registration<T> | undefined;
+      if (registration) {
+        // class → lazy proxy (deferred construction breaks cycles); value/factory
+        // → eager (returns the real value; primitives cannot be proxied).
+        if (isClassProvider(registration.provider)) {
+          return createLazyProxy(() => container.resolve(token) as T & object) as T;
+        }
+        return container.resolve(token);
+      }
+      // unregistered: a class can still be built lazily; anything else is a wiring
+      // mistake and throws now (surfaces at boot under warmup).
+      if (isConstructor(token)) {
+        return createLazyProxy(() => container.resolve(token) as T & object) as T;
+      }
+      throw new Error(`unregistered token ${tokenName(token)}`);
     },
 
     has(token: Token): boolean {

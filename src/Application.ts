@@ -2,7 +2,9 @@ import { JsonLog, Log } from "@danielfroz/slog";
 import { container } from "./Container.ts";
 import { Controller } from './Controller.ts';
 import { type Framework } from "./Framework.ts";
+import { Initializer } from "./Initializer.ts";
 import { DI, Errors, Middleware } from "./mod.ts";
+import { registerProviders } from "./Provide.ts";
 import { buildControllers } from "./Route.ts";
 
 export interface ApplicationConstructorProps<C = any> {
@@ -90,32 +92,42 @@ export class HandlerBuilder {
   }
 }
 
-export class ServiceBuilder {
+/**
+ * Registers DI providers — every `@Provide`/`@Repository`/`@Service`-decorated
+ * class. Registration order is irrelevant (`inject` is lazy; `warmup` validates
+ * at boot). For decorator-free or one-off bindings, use `container.register(...)`
+ * directly.
+ */
+export class ProviderBuilder {
   /**
-   * Injects the class to the DI container; class resolution depends on the Scope.
+   * Registers every `@Provide`/`@Repository`/`@Service`-decorated class.
+   *
+   * IMPORTANT: the decorated modules must be imported first (a side-effect import
+   * of the providers barrel) so their decorators have run.
    */
-  addClass<T extends object>(token: DI.Token<T>, clazz: DI.Constructor<T>, options?: { scope?: DI.Scope }): ServiceBuilder {
-    if(!token)
-      throw new Errors.ArgumentError('token')
-    if(!clazz)
-      throw new Errors.ArgumentError('clazz')
-    container.register<T>(token, { useClass: clazz }, {
-      scope: options?.scope ?? DI.Scope.Singleton
-    })
+  discover(): ProviderBuilder {
+    registerProviders(container)
     return this
   }
+}
 
+/**
+ * Runs {@link Initializer}s — the ordered, imperative I/O bootstrap (connect
+ * Mongo, load secrets, build API clients, init the event bus, …).
+ */
+export class InitRunner {
   /**
-   * Injects the object to the DI container
-   * Note that the value is always registered as Singleton
+   * Resolves each initializer through the container (so constructor DI works) and
+   * awaits its `init()` **in argument order**. A throwing initializer aborts the
+   * run (and therefore startup).
    */
-  addValue<T extends object>(token: DI.Token<T>, value: T): ServiceBuilder {
-    if(!token)
-      throw new Errors.ArgumentError('token')
-    if(!value)
-      throw new Errors.ArgumentError('value')
-    container.register<T>(token, { useValue: value })
-    return this
+  async run(...inits: DI.Constructor<Initializer>[]): Promise<void> {
+    for(const Init of inits) {
+      if(!Init)
+        throw new Errors.ArgumentError('init')
+      const initializer = container.resolve(Init)
+      await initializer.init()
+    }
   }
 }
 
@@ -146,22 +158,38 @@ export class Application {
     return new HandlerBuilder(this.#handlers)
   }
 
-  // get Services(): ServiceBuilder {
-  //   return new ServiceBuilder()
-  // }
+  /**
+   * DI provider registration — `app.Providers.discover()` registers every
+   * `@Provide`/`@Repository`/`@Service` class.
+   */
+  get Providers(): ProviderBuilder {
+    return new ProviderBuilder()
+  }
+
+  /**
+   * Ordered, imperative bootstrap — `await app.Inits.run(LogInit, SecretInit, …)`.
+   */
+  get Inits(): InitRunner {
+    return new InitRunner()
+  }
 
   /**
    * Eagerly resolves every registered class/factory token once, so a missing or
    * misconfigured dependency fails at boot instead of on the first request that
    * touches it. Singletons are constructed and cached; transients are validated
-   * and discarded. Safe to use alongside {@link DI.lazy}.
+   * and discarded.
    *
-   * Called automatically by {@link Application.start} when `{ warmup: true }` is
-   * passed; can also be invoked manually after all registrations are in place.
+   * Because `inject` is lazy, constructing a class resolves its class
+   * dependencies as proxies — but warmup constructs every *registered* class, and
+   * `inject`'s eager registration lookup throws on an unregistered token, so
+   * missing wiring still surfaces here at boot.
+   *
+   * Called automatically by {@link Application.start} unless `{ warmup: false }`
+   * is passed; can also be invoked manually after all registrations are in place.
    */
   warmup(): { resolved: number } {
     const result = container.warmup()
-    Application.log.info({ msg: 'container warmup complete', resolved: result.resolved })
+    Application.log.debug({ msg: 'container warmup complete', resolved: result.resolved })
     return result
   }
 
@@ -177,8 +205,9 @@ export class Application {
       else
         this.framework.createController(c as Controller)
     }
-    // opt-in: validate/pre-build the dependency graph before listening.
-    if(args?.warmup)
+    // validate/pre-build the dependency graph before listening (fail fast).
+    // On by default; pass `{ warmup: false }` to skip.
+    if(args?.warmup !== false)
       this.warmup()
     const port = args?.port ?? 80
     const hostname = args?.hostname ?? '0.0.0.0'
