@@ -15,8 +15,8 @@ while adhering to the CQRS (Command Query Responsibility Segregation) pattern.
 Ready to dive in? Explore the example implementations to see **Sloth** in
 action:
 
-- **[Oak Example](examples/oak)**: API service implementation with Oak.
-- **[Express Example](examples/express)**: API service implementation with
+- **[Oak Example](https://github.com/danielfroz/sloth/tree/main/examples/oak)**: API service implementation with Oak.
+- **[Express Example](https://github.com/danielfroz/sloth/tree/main/examples/express)**: API service implementation with
   Express.
 
 Each example showcases the recommended project structure and key concepts for
@@ -103,7 +103,7 @@ parsing, middleware state merge, error mapping) — pick whichever fits.
 
 Declare the route **on the handler** with `@Route` and let the application
 assemble the controllers automatically. No `controllers/*.ts` files to maintain —
-adding an endpoint is just a new handler. See **[examples/oak](examples/oak)**.
+adding an endpoint is just a new handler. See **[examples/oak](https://github.com/danielfroz/sloth/tree/main/examples/oak)**.
 
 ```ts
 import { CommandHandler, DI, QueryHandler, Route } from "@danielfroz/sloth";
@@ -248,7 +248,7 @@ still work); only `Errors.AuthError` (now 2-arg) and `Errors.CodeDescriptionErro
 → `Errors.CodeError` are breaking.
 
 Using an LLM agent? This repo ships **Claude Code skills** in
-[`.claude/skills/`](.claude/skills): `sloth-migrate` (modernize an existing
+[`.claude/skills/`](https://github.com/danielfroz/sloth/tree/main/.claude/skills): `sloth-migrate` (modernize an existing
 service to 0.2.0) and `sloth-scaffold` (add a new `@Route` endpoint).
 
 ## Contributing

@@ -26,6 +26,7 @@
       ".github",
       ".vscode",
       ".claude",
+      "CLAUDE.md",
       "examples",
       "test",
       "**/*.test.ts"
