@@ -203,10 +203,12 @@ export class EchoGetHandler implements QueryHandler<...> { ... }
 Per-route middleware also works in the manual style:
 `new Controller('/echo').add({ endpoint: '/save', handler: EchoSaveHandler, middlewares: [AuthMiddleware] })`.
 
-> Both bundled examples (`examples/oak` and `examples/express`) use `@Route`
-> discovery with a global `Log` + `Auth` `before` pipeline and a `NotFound`
-> `after` — the same shape on each adapter. Per-route middleware is documented
-> above as an alternative.
+> Both bundled examples — **[examples/oak](https://github.com/danielfroz/sloth/tree/main/examples/oak)**
+> and **[examples/express](https://github.com/danielfroz/sloth/tree/main/examples/express)** —
+> use `@Route` discovery with a global `Log` + `Auth` `before` pipeline and a
+> `NotFound` `after` — the same shape on each adapter. Per-route middleware is
+> documented above as an alternative. Look at the examples for a full, runnable
+> reference.
 
 ## Handler Scope
 
@@ -373,7 +375,9 @@ export class RepoGetHandler implements QueryHandler<RepoGetQuery, RepoGetQueryRe
 ```
 
 A non-2xx response throws `Errors.ApiError`, which the adapter maps to the matching
-HTTP status. The full, runnable version is in **`examples/oak`** (and `examples/express`) —
+HTTP status. The full, runnable version is in
+**[examples/oak](https://github.com/danielfroz/sloth/tree/main/examples/oak)** (and
+**[examples/express](https://github.com/danielfroz/sloth/tree/main/examples/express)**) —
 `POST /repo/get { "owner": "danielfroz", "name": "sloth" }`.
 
 ## Upgrading

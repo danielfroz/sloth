@@ -164,6 +164,9 @@ maps the response into a Result), `middlewares/`, `inits/` (`LogInit`, `ApiInit`
 ```sh
 sh ./compile.sh          # deno compile of mod / express / oak (type-check)
 sh ./test.sh             # deno test ./test (framework unit tests)
+deno publish --dry-run --allow-dirty   # REQUIRED before pushing — runs JSR's
+                                       # slow-types + publish validation (the
+                                       # workflow publishes on every push to main)
 cd examples/oak && sh ./dev.sh    # run example (deno run -A --watch)
 cd examples/oak && sh ./test.sh   # example tests
 ```
@@ -184,5 +187,8 @@ Quick example type-check: `cd examples/oak && deno check src/main.ts`.
   is preferred. (See README "Handler Scope" section.)
 - Use `Errors.CodeError` / `Errors.ArgumentError` / `Errors.AuthError(code, msg)`.
 - All new public surface must be re-exported from `src/mod.ts`.
+- **Exported (public-API) functions need an explicit return type** — JSR's
+  `publish` slow-types check rejects inferred returns (this broke 0.3.0 via
+  `Provide()` returning a decorator). Verify with `deno publish --dry-run`.
 - Lint (`deno.json`): `no-namespace`, `no-explicit-any`.
 - Constructor DI via default params: `constructor(private repo = DI.inject(Types.Repos.X)) {}`.
