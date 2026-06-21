@@ -3,11 +3,22 @@ import { Types } from "@/types.ts"
 import { DI, Errors, QueryHandler, Route } from "@danielfroz/sloth"
 
 /**
- * The endpoint is declared right here with @Route — no controllers/Echo.ts to
- * maintain. At startup `app.Handlers.routes()` assembles the controller from
- * every @Route-decorated handler. Transient scope recreates the handler per request.
+ * The endpoint is declared right here with @Route — no controllers/*.ts to
+ * maintain. At startup Sloth assembles the controller from every @Route-decorated
+ * handler.
+ *
+ * Scope is optional and defaults to DI.Scope.Singleton (one shared instance).
+ * Pass DI.Scope.Transient to recreate the handler on every request — only needed
+ * when a handler must hold per-request state. Prefer keeping handlers stateless
+ * (see the README "Handler Scope" section); then Singleton is the better default.
+ * To override:
+ *
+ * ```ts
+ * @Route('/echo/get', { scope: DI.Scope.Transient })
+ * export class EchoGetHandler ... {}
+ * ```
  */
-@Route('/echo/get', { scope: DI.Scope.Transient })
+@Route('/echo/get')
 export class EchoGetHandler implements QueryHandler<EchoGetQuery, EchoGetQueryResult> {
   constructor(
     private readonly echoRepo = DI.inject(Types.Repos.Echo)
@@ -30,4 +41,3 @@ export class EchoGetHandler implements QueryHandler<EchoGetQuery, EchoGetQueryRe
     }
   }
 }
-

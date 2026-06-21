@@ -4,7 +4,7 @@ import { container } from "@danielfroz/sloth";
 
 export const init = async () => {
   const log = new JsonLog({
-    init: { service: '@danielfroz/sloth:examples.oak'}
+    init: { service: 'examples.oak'}
   })
   container.register(Types.Log, { useValue: log })
 }

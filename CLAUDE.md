@@ -76,11 +76,13 @@ resolution, request/response mapping, middleware, and error handling.
 ## Two ways to define endpoints
 
 1. **Decorator discovery (preferred, low boilerplate)** — `@Route` on the
-   handler + `app.Handlers.routes()`. Reference: **`examples/oak`**.
+   handler + `app.Handlers.routes()`/`pipeline({ discover: true })`. Reference:
+   **both `examples/oak` and `examples/express`** (same shape on each adapter).
    ⚠️ Handler modules must be imported (side-effect import of the handlers
-   barrel) before `.routes()` so the decorators have run.
-2. **Manual** — `new Controller(base).add(...)` then `app.Handlers.push(controller)`.
-   Reference: **`examples/express`**.
+   barrel) before discovery so the decorators have run.
+2. **Manual** — `new Controller(base).add(...)` then `app.Handlers.push(controller)`
+   or `pipeline({ controllers: [...], discover: false })`. Fully supported, no
+   longer used by the bundled examples; shown as a snippet in the README.
 
 Both are fully supported and can coexist.
 
@@ -100,8 +102,8 @@ src/
   oak/  express/    # framework adapters (own mod.ts each)
 test/               # framework unit tests (deno test)
 examples/
-  oak/              # decorator-style (@Route + pipeline) reference + smoke test
-  express/          # manual Controller.add() + pipeline reference (Express 5)
+  oak/              # @Route discovery + pipeline reference (Oak) + smoke test
+  express/          # @Route discovery + pipeline reference (Express 5) — same shape as oak
 MIGRATION.md        # 0.1.x → 0.2.0 upgrade guide (canonical, ships with package)
 .claude/skills/     # community skills: sloth-migrate, sloth-scaffold (excluded from JSR publish)
 ```

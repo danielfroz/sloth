@@ -1,18 +1,24 @@
 import { EchoSaveCommand, EchoSaveCommandResult } from "@/models/cqrs/echo/index.ts";
 import { Types } from '@/types.ts';
-import { CommandHandler, DI, Errors } from "@danielfroz/sloth";
+import { CommandHandler, DI, Errors, Route } from "@danielfroz/sloth";
 
 /**
- * This is a protected handler.
- * Only authorized requests are allowed to save information to the system
- * So we enforce at this handler checking if cmd.auth has passed on the request
- * The information comes from the Authorization header
- * @see middlewares/Auth.ts code for detailed implementation
+ * This is a protected handler — only authorized requests may write.
+ *
+ * The endpoint is declared with @Route (no controllers/*.ts). Auth is applied
+ * globally in the pipeline `before` (see inits/App.ts): the AuthMiddleware passes
+ * the token down via res.locals, and this handler additionally checks cmd.auth,
+ * giving both Authn (middleware) and Authz (handler).
+ *
+ * (For endpoint-specific auth you could instead scope it with
+ * @Route('/echo/save', { use: [AuthMiddleware] }) — see the README "Middleware".)
+ *
+ * @see middlewares/Auth.ts for the middleware implementation.
  */
+@Route('/echo/save')
 export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSaveCommandResult> {
   constructor(
-    private readonly echoRepo = DI.inject(Types.Repos.Echo),
-    private readonly log = DI.inject(Types.Log)
+    private readonly echoRepo = DI.inject(Types.Repos.Echo)
   ) {}
 
   async handle(cmd: EchoSaveCommand): Promise<EchoSaveCommandResult> {
@@ -26,17 +32,13 @@ export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSave
       throw new Errors.AuthError('unauthorized', 'permission denied')
 
     const { id, sid, text } = cmd
-    const log = this.log.child({ handler: 'echo.Save', sid })
 
     const echo = {
       id,
       text
     }
-
     await this.echoRepo.save(echo)
 
-    log.info({ msg: `echo saved with text: ${echo.text}`})
-    
     return {
       id,
       sid,

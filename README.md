@@ -140,8 +140,9 @@ Routes are grouped into one `Controller` per **first path segment**
 
 ### 2. Manual controllers
 
-Wire handlers explicitly with `Controller.add()`. See
-**[examples/express](examples/express)**.
+Prefer to wire handlers explicitly? `Controller.add()` is fully supported and
+interchangeable with `@Route` (both bundled examples use `@Route` discovery; the
+manual style below remains a first-class alternative).
 
 ```ts
 export const EchoController = new Controller('/echo')
@@ -202,8 +203,10 @@ export class EchoGetHandler implements QueryHandler<...> { ... }
 Per-route middleware also works in the manual style:
 `new Controller('/echo').add({ endpoint: '/save', handler: EchoSaveHandler, middlewares: [AuthMiddleware] })`.
 
-> The `examples/oak` app shows per-route auth + a global log/not-found pipeline;
-> `examples/express` shows global auth + manual controllers.
+> Both bundled examples (`examples/oak` and `examples/express`) use `@Route`
+> discovery with a global `Log` + `Auth` `before` pipeline and a `NotFound`
+> `after` — the same shape on each adapter. Per-route middleware is documented
+> above as an alternative.
 
 ## Handler Scope
 
