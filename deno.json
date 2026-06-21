@@ -1,6 +1,6 @@
 {
   "name": "@danielfroz/sloth",
-  "version": "0.1.22",
+  "version": "0.2.0",
   "description": "Core module for the Sloth framework",
   "license": "MIT",
   "exports": {
@@ -25,7 +25,9 @@
       ".git",
       ".github",
       ".vscode",
+      ".claude",
       "examples",
+      "test",
       "**/*.test.ts"
     ]
   }

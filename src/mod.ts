@@ -7,4 +7,5 @@ export * as DI from './di/index.ts';
 export * as Errors from './Errors.ts';
 export * from './Framework.ts';
 export * from './Middleware.ts';
+export * from './Route.ts';
 

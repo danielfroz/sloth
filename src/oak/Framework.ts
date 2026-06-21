@@ -31,7 +31,8 @@ export class OakFramework implements Framework<OakApplication> {
         r.route.endpoint.startsWith('/') ? r.route.endpoint: `/${r.route.endpoint}`:
         '/'
       const url = `${base}${endpoint}`
-      router.post(url, async (ctx: Context) => {
+      const mws = (r.route.middlewares ?? []).map((m) => this.wrap(m))
+      const route = async (ctx: Context) => {
         const log = Application.log.child({ handler: url })
 
         // this allow to catch the ID and SID from the request to pass along the error response
@@ -175,19 +176,32 @@ export class OakFramework implements Framework<OakApplication> {
             return
           }
         }
-      })
+      }
+      // route-scoped middlewares (if any) run before the handler. Oak's post()
+      // signature is (path, middleware, ...middlewares) — a required first
+      // middleware plus a rest — so pass the first element explicitly and spread
+      // the remainder.
+      const chain = [...mws, route]
+      router.post(url, chain[0], ...chain.slice(1))
 
       this.application.use(router.routes())
       Application.log.debug({ msg: `registered @Controller ${url} -> ${r.route.handler.name}` })
     }
   }
 
-  createMiddleware(middleware: Middleware): void {
-    const mid = async (ctx: Context, next: Next) => {
+  /**
+   * Wraps a Sloth Middleware into an Oak middleware. Shared by createMiddleware
+   * (global) and createController (route-scoped via RouteHandler.middlewares).
+   */
+  private wrap(middleware: Middleware): (ctx: Context, next: Next) => Promise<void> {
+    return async (ctx: Context, next: Next) => {
       const m = middleware as MiddlewareCtx
       await m(() => ctx, () => next)
     }
-    this.application.use(mid)
+  }
+
+  createMiddleware(middleware: Middleware): void {
+    this.application.use(this.wrap(middleware))
     Application.log.debug(`registered @Middleware: ${middleware.name}`)
   }
 

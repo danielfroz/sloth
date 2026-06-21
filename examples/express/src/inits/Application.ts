@@ -19,12 +19,20 @@ export const init = async () => {
   })
 
   /**
-   * This code injects the Controllers & Middlewares to the DI for later initialization
-   * Note that initialization only happens at .start() phase
+   * The whole request pipeline declared in one structured call:
+   *   before → controllers → after
+   *
+   * This example uses MANUAL controllers (Controller.add) rather than @Route
+   * discovery, so we pass them explicitly via `controllers` and turn discovery
+   * off. Auth here is GLOBAL (`before`), contrast with the oak example which
+   * scopes Auth per-route via @Route({ use: [...] }).
    */
-  app.Handlers.add(AuthMiddleware)
-  app.Handlers.add(EchoController)
-  app.Handlers.add(NotFoundMiddleware)
+  app.Handlers.pipeline({
+    before: [ AuthMiddleware ],
+    controllers: [ EchoController ],
+    after: [ NotFoundMiddleware ],
+    discover: false,
+  })
 
   /**
    * Accessing the framework Container

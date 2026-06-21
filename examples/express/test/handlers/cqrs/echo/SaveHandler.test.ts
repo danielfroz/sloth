@@ -2,13 +2,24 @@ import { EchoSaveHandler } from "@/handlers/cqrs/echo/index.ts";
 import { EchoSaveCommand } from '@/models/cqrs/echo/index.ts';
 import { Echo } from '@/models/dtos/index.ts';
 import { EchoRepository } from '@/repositories/index.ts';
+import { Log } from '@danielfroz/slog';
 import { assert } from "@std/assert/assert";
 import { beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
+// Minimal no-op Log: child() returns itself; level methods do nothing.
+const log = {
+  child: () => log,
+  trace: () => {},
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+} as unknown as Log
+
 describe('EchoSaveHandler', () => {
   let handler:EchoSaveHandler
-  
+
   const echoDb = new Map<string, { id: string, text: string }>()
 
   beforeEach(() => {
@@ -19,7 +30,7 @@ describe('EchoSaveHandler', () => {
       return Promise.resolve()
     })
 
-    handler = new EchoSaveHandler(repo)
+    handler = new EchoSaveHandler(repo, log)
   })
 
   it('shall work with full example', async () => {
@@ -27,6 +38,7 @@ describe('EchoSaveHandler', () => {
     const cmd = {
       id,
       sid: id,
+      auth: '1', // this info comes from the Authorization request header
       text: 'Hello world'
     } as EchoSaveCommand
     const res = await handler.handle(cmd)

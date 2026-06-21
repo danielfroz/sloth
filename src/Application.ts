@@ -3,10 +3,27 @@ import { container } from "./Container.ts";
 import { Controller } from './Controller.ts';
 import { type Framework } from "./Framework.ts";
 import { DI, Errors, Middleware } from "./mod.ts";
+import { buildControllers } from "./Route.ts";
 
 export interface ApplicationConstructorProps<C = any> {
   framework: Framework<C>
   log?: Log
+}
+
+/**
+ * Structured global pipeline declaration. Middlewares run in array order:
+ * `before` → controllers → `after`. Controllers come from `controllers` (manual)
+ * plus, unless `discover` is false, every `@Route`-decorated handler.
+ */
+export interface Pipeline {
+  /** Middlewares that run before every controller (auth, cors, request logging). */
+  before?: Middleware[]
+  /** Manual controllers to mount (in addition to `@Route`-discovered ones). */
+  controllers?: Controller[]
+  /** Middlewares that run after all controllers (404 catch-all, fallback). */
+  after?: Middleware[]
+  /** Include `@Route`-discovered controllers between `before` and `after`. Default: true. */
+  discover?: boolean
 }
 
 export class HandlerBuilder {
@@ -18,6 +35,57 @@ export class HandlerBuilder {
 
   push(handler: Controller | Middleware): HandlerBuilder {
     this.handlers.push(handler)
+    return this
+  }
+
+  /**
+   * Pushes the Controllers assembled from every `@Route`-decorated handler into
+   * the handler chain at this exact position. Call it between middlewares to
+   * preserve ordering, e.g.:
+   *
+   * ```ts
+   * app.Handlers
+   *   .push(AuthMiddleware)     // runs before controllers
+   *   .routes()                 // all @Route controllers inserted here
+   *   .push(NotFoundMiddleware) // catch-all, last
+   * ```
+   *
+   * IMPORTANT: handler modules must be imported before calling this (e.g. a
+   * side-effect import of the handlers barrel) so their decorators have run.
+   */
+  routes(): HandlerBuilder {
+    for(const controller of buildControllers())
+      this.handlers.push(controller)
+    return this
+  }
+
+  /**
+   * Declares the whole request pipeline in one structured call, in order:
+   * `before` middlewares → controllers (manual + `@Route`-discovered) → `after`
+   * middlewares. Sugar over push()/routes() that makes the
+   * before/after-controllers split explicit.
+   *
+   * ```ts
+   * app.Handlers.pipeline({
+   *   before: [LogMiddleware],      // runs before all controllers
+   *   after:  [NotFoundMiddleware], // catch-all, runs last
+   * })
+   * ```
+   *
+   * IMPORTANT: when relying on `@Route` discovery (the default), import your
+   * handler modules first (side-effect import of the handlers barrel) so their
+   * decorators have run.
+   */
+  pipeline(p: Pipeline): HandlerBuilder {
+    for(const m of p.before ?? [])
+      this.handlers.push(m)
+    for(const c of p.controllers ?? [])
+      this.handlers.push(c)
+    if(p.discover !== false)
+      for(const c of buildControllers())
+        this.handlers.push(c)
+    for(const m of p.after ?? [])
+      this.handlers.push(m)
     return this
   }
 }

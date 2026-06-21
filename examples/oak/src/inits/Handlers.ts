@@ -1,18 +1,25 @@
 import { app } from "@/app.ts";
-import { EchoController } from "@/controllers/index.ts";
-import { AuthMiddleware, NotFoundMiddleware } from "@/middlewares/index.ts";
-import { MiddlewareCtx } from "@danielfroz/sloth";
+// Side-effect import: evaluating the handlers barrel runs every @Route decorator,
+// populating the route registry that pipeline()/routes() reads below.
+import "@/handlers/cqrs/index.ts";
+import { LogMiddleware, NotFoundMiddleware } from "@/middlewares/index.ts";
 
 /**
- * We must register all handlers; Controllers and Middlewares
- * Note that we need to register AuthMiddleware at the beginning of the stack
- * NotFoundMiddleware just at the end.
- * 
- * If you place NotFound at the beginning, since it is a catch all Middleware
- * then you will see NOT FOUND response everywhere
+ * The whole request pipeline declared in one structured call:
+ *
+ *   before → controllers (@Route-discovered) → after
+ *
+ * - `before`: LogMiddleware — cross-cutting, runs ahead of every controller.
+ * - controllers: assembled automatically from every @Route handler (inserted
+ *   between `before` and `after`); no controllers/Echo.ts to maintain.
+ * - `after`: NotFoundMiddleware — catch-all, runs last.
+ *
+ * Auth is NOT global here — it's scoped to /echo/save via @Route({ use: [Auth] }),
+ * so /echo/get is public. See handlers/cqrs/echo/SaveHandler.ts.
  */
 export const init = async () => {
-  app.Handlers.push(AuthMiddleware as MiddlewareCtx)
-  app.Handlers.push(EchoController)
-  app.Handlers.push(NotFoundMiddleware as MiddlewareCtx)
+  app.Handlers.pipeline({
+    before: [ LogMiddleware ],
+    after: [ NotFoundMiddleware ],
+  })
 }

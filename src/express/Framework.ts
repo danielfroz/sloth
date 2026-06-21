@@ -9,8 +9,8 @@ import {
   MiddlewareReq,
   container
 } from "@danielfroz/sloth";
-import express, { NextFunction, Request, Response } from 'npm:express@4.21.2';
-import multer from 'npm:multer@2.0.2';
+import express, { NextFunction, Request, Response } from 'npm:express@5.2.1';
+import multer from 'npm:multer@2.2.0';
 
 export class ExpressFramework implements Framework<express.Application> {
   private readonly application = express()
@@ -40,7 +40,8 @@ export class ExpressFramework implements Framework<express.Application> {
         r.route.endpoint.startsWith('/') ? r.route.endpoint: `/${r.route.endpoint}`:
         '/'
       const url = endpoint
-      router.post(url, async (preq: Request, pres: Response) => {
+      const mws = (r.route.middlewares ?? []).map((m) => this.wrap(m))
+      const route = async (preq: Request, pres: Response) => {
         const log = Application.log.child({ handler: url })
 
         // this allow to catch the ID and SID from the request to pass along the error response
@@ -157,19 +158,32 @@ export class ExpressFramework implements Framework<express.Application> {
             })
           }
         }
-      })
+      }
+      // route-scoped middlewares (if any) run before the handler. post() takes a
+      // required first handler plus a rest, so pass the first element explicitly
+      // and spread the remainder.
+      const chain = [...mws, route]
+      router.post(url, chain[0], ...chain.slice(1))
 
       this.application.use(base, router)
       Application.log.debug({ msg: `registered handler ${base}${url} -> ${r.route.handler.name}` })
     }
   }
 
-  createMiddleware(middleware: Middleware): void {
-    const mid = async (req: Request, res: Response, next: NextFunction) => {
+  /**
+   * Wraps a Sloth Middleware into an Express middleware. Shared by
+   * createMiddleware (global) and createController (route-scoped via
+   * RouteHandler.middlewares).
+   */
+  private wrap(middleware: Middleware): (req: Request, res: Response, next: NextFunction) => Promise<void> {
+    return async (req: Request, res: Response, next: NextFunction) => {
       const m = middleware as MiddlewareReq
       await m(() => req, () => res, () => next)
     }
-    this.application.use(mid)
+  }
+
+  createMiddleware(middleware: Middleware): void {
+    this.application.use(this.wrap(middleware))
     Application.log.debug(`registered @Middleware: ${middleware.name}`)
   }
 

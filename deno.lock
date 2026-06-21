@@ -1,11 +1,31 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@danielfroz/slog@0.3.2": "0.3.2"
+    "jsr:@danielfroz/slog@0.3.2": "0.3.2",
+    "jsr:@std/assert@1.0.9": "1.0.9",
+    "jsr:@std/assert@^1.0.9": "1.0.9",
+    "jsr:@std/internal@^1.0.5": "1.0.12",
+    "jsr:@std/testing@1.0.6": "1.0.6"
   },
   "jsr": {
     "@danielfroz/slog@0.3.2": {
       "integrity": "761c37d5d121596b5deb66f3a05fa4b1034e7b65853cc04d7cb1f8e4f8faf7c0"
+    },
+    "@std/assert@1.0.9": {
+      "integrity": "a9f0c611a869cc791b26f523eec54c7e187aab7932c2c8e8bea0622d13680dcd",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    },
+    "@std/testing@1.0.6": {
+      "integrity": "9192ded2d34065f4c959fdc1921fe836770abb9194410c2cc8a0fff4eff5c893",
+      "dependencies": [
+        "jsr:@std/assert@^1.0.9",
+        "jsr:@std/internal"
+      ]
     }
   },
   "workspace": {

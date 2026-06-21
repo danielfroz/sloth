@@ -1,9 +1,10 @@
 import { container } from "./Container.ts";
 import { Base, BaseHandler, BaseResult } from "./Cqrs.ts";
 import { Constructor, Scope, Token, Type } from "./di/index.ts";
+import { Middleware } from "./Middleware.ts";
 import { Errors } from "./mod.ts";
 
-export interface Route {
+export interface ControllerRoute {
   type: Token,
   route: RouteHandler<Base, BaseResult>
 }
@@ -11,6 +12,11 @@ export interface Route {
 export interface RouteHandler<T extends Base, TR extends BaseResult> {
   endpoint: string
   handler: Constructor<BaseHandler<T, TR>>
+  /**
+   * Route-scoped middlewares, run (in order) before the handler for this route
+   * only. The adapters spread them into the framework router before the handler.
+   */
+  middlewares?: Middleware[]
 }
 
 export interface RouteOptions {
@@ -18,13 +24,13 @@ export interface RouteOptions {
 }
 
 export class Controller {
-  readonly #routes = new Array<Route>()
+  readonly #routes = new Array<ControllerRoute>()
 
   constructor(
     readonly base: string
   ) {}
 
-  get routes(): Route[] {
+  get routes(): ControllerRoute[] {
     return this.#routes
   }
 

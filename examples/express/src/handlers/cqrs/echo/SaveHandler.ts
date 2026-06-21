@@ -23,7 +23,7 @@ export class EchoSaveHandler implements CommandHandler<EchoSaveCommand, EchoSave
     if(!cmd.text)
       throw new Errors.ArgumentError('cmd.text')
     if(!cmd.auth)
-      throw new Errors.AuthError('unauthorized', 'permission denied', 'invalid request')
+      throw new Errors.AuthError('unauthorized', 'permission denied')
 
     const { id, sid, text } = cmd
     const log = this.log.child({ handler: 'echo.Save', sid })
