@@ -1,7 +1,17 @@
 import { Controller } from "./Controller.ts";
 import { Base, BaseHandler, BaseResult } from "./Cqrs.ts";
-import type { ClassDecorator, Constructor } from "./di/index.ts";
+import type { Constructor } from "./di/index.ts";
 import { Scope } from "./di/index.ts";
+
+/**
+ * TC39 standard class-decorator signature.
+ *
+ * @see {@link https://github.com/tc39/proposal-decorators?tab=readme-ov-file#classes}
+ */
+type ClassDecorator<Class extends Constructor<object>> = (
+  value: Class,
+  context: ClassDecoratorContext<Class>,
+) => Class | void;
 import * as Errors from "./Errors.ts";
 import { Middleware } from "./Middleware.ts";
 
@@ -81,7 +91,7 @@ function split(path: string): { base: string; endpoint: string } {
  * Class decorator that declares the HTTP route served by a CQRS handler.
  *
  * The decorated handler is recorded in a module-level registry (an import-time
- * side effect, same idiom as the DI `@Injectable`/`@Scoped` decorators). At
+ * side effect). At
  * startup, `app.Handlers.routes()` reads the registry and assembles the
  * {@link Controller}s automatically — no manual `Controller.add()` wiring.
  *

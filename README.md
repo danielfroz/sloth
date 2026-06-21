@@ -240,6 +240,61 @@ For a **stateless** handler, `Singleton` and `Transient` behave identically, and
 genuinely must hold per-request state; staying stateless is the better fix. Scope
 is set where you map the route (see [Defining endpoints](#defining-endpoints)).
 
+## Lazy injection (circular dependencies)
+
+Dependencies wired with `DI.inject(token)` are resolved **eagerly**, the moment
+the owner is constructed. When two services depend on each other, that recursion
+has nowhere to bottom out and the container throws `circular dependency detected`.
+
+`DI.lazy(token)` is the fix. It returns a transparent proxy and defers resolution
+until the **first time you use the dependency** (resolved once, then memoized).
+Because the owner finishes constructing before the cycle closes, it is cached as a
+singleton — so when the other side resolves back to it, it gets the existing
+instance instead of recursing.
+
+Swap `inject` → `lazy` on **one edge** of the cycle. Call sites don't change:
+
+```ts
+class A {
+  constructor(private readonly b = DI.lazy(Types.B)) {}   // ← lazy breaks the cycle
+  run() { return this.b.help() }                          // B resolved here, on first use
+}
+
+class B {
+  constructor(private readonly a = DI.inject(Types.A)) {} // ← eager is fine on the other edge
+  help() { /* ... */ }
+}
+```
+
+Notes:
+
+- Only the **injection** is deferred — don't *call* a lazy dependency inside the
+  constructor body (that would resolve it during construction and reintroduce the
+  cycle). Using it in `handle()` / methods is exactly right.
+- Method members are bound to the resolved instance, so `#private` fields and
+  fluent `return this` work normally.
+- As a bonus, `lazy` removes registration-order sensitivity: the token only needs
+  to be registered before it is first *used*, not before it is injected.
+
+### Fail fast at boot — `warmup()`
+
+Because `inject` resolves on construction and `lazy` resolves on first use, a
+missing or misconfigured dependency surfaces *when it's first touched* — for a
+lazy edge, possibly on a request rather than at startup. `warmup()` restores
+fail-fast: it eagerly resolves every registered class/factory token once, so the
+whole graph is validated (and singletons pre-built) before you serve traffic.
+
+```ts
+await app.start({ port: 3000, warmup: true }) // validate the graph, then listen
+// or call it yourself once everything is registered:
+app.warmup() // { resolved: <count> }  — throws Errors.InitError listing failures
+```
+
+Singletons are constructed and cached; transients are validated and discarded;
+value providers are skipped. It's safe alongside `lazy` (proxies don't recurse —
+each target token is validated on its own). It's opt-in: `start()` does not warm
+up unless you pass `{ warmup: true }`.
+
 ## Upgrading
 
 Moving from 0.1.x to 0.2.0? See **[MIGRATION.md](MIGRATION.md)** — most changes

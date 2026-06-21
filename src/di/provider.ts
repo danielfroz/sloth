@@ -1,7 +1,7 @@
 import type { Constructor } from "./token.ts";
 
 /**
- * Provider type.
+ * Provider type — how the container builds the value for a token.
  */
 export type Provider<Value = any> =
   | ClassProvider<Value & object>
@@ -9,43 +9,37 @@ export type Provider<Value = any> =
   | ValueProvider<Value>;
 
 /**
- * Class provider type.
+ * Class provider — the container instantiates the class (honouring its scope).
  */
 export interface ClassProvider<Instance extends object> {
   readonly useClass: Constructor<Instance>;
 }
 
 /**
- * Factory provider type.
+ * Factory provider — the container calls the factory (honouring its scope).
  */
 export interface FactoryProvider<Value> {
-  readonly useFactory: (...args: []) => Value;
+  readonly useFactory: () => Value;
 }
 
 /**
- * Value provider type.
+ * Value provider — the container returns the value as-is (always a constant).
  */
 export interface ValueProvider<T> {
   readonly useValue: T;
 }
 
 // @internal
-export const NullProvider = {useValue: null};
-
-// @internal
-export const UndefinedProvider = {useValue: undefined};
-
-// @internal
-export function isClassProvider<T>(provider: Provider<T>) {
+export function isClassProvider<T>(provider: Provider<T>): provider is ClassProvider<T & object> {
   return "useClass" in provider;
 }
 
 // @internal
-export function isFactoryProvider<T>(provider: Provider<T>) {
+export function isFactoryProvider<T>(provider: Provider<T>): provider is FactoryProvider<T> {
   return "useFactory" in provider;
 }
 
 // @internal
-export function isValueProvider<T>(provider: Provider<T>) {
+export function isValueProvider<T>(provider: Provider<T>): provider is ValueProvider<T> {
   return "useValue" in provider;
 }

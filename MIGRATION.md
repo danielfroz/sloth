@@ -1,3 +1,75 @@
+# Migrating to Sloth 0.3.0
+
+Sloth 0.3.0 **slims the DI container** down to the surface services actually use,
+and adds two capabilities: `DI.lazy` (break circular dependencies) and
+`warmup()` (fail fast at boot). For the overwhelming majority of services the
+upgrade is **just a version bump** — the kept API (`DI.inject`, `DI.Type`,
+`DI.Scope`, `container.register`/`resolve`) is unchanged.
+
+## Prerequisite
+
+Bump the dependency to **0.3.0** in `deno.json` (and `deno.local.json` if you use
+a split config):
+
+```jsonc
+"@danielfroz/sloth": "jsr:@danielfroz/sloth@0.3.0"
+```
+
+## Kept (no change)
+
+`DI.inject(token)`, `DI.Type<T>(name)`, `DI.Scope` (`Singleton` | `Transient`),
+`container.register(token, provider, options?)` (with `useClass`/`useValue`/
+`useFactory`), and `container.resolve(token)` keep the same signatures and
+semantics.
+
+## Behavior change — default scope is now `Singleton`
+
+`container.register(token, { useClass })` **without** an explicit `{ scope }` now
+defaults to **`Singleton`** (it was `Transient` in di-wise). This aligns the bare
+`register` call with `Controller.add`, `@Route`, and `ServiceBuilder.addClass`,
+which already default to `Singleton`.
+
+**Practically:** a repo/service registered in `inits/*` without a scope is now a
+**single shared instance** instead of one per injecting handler.
+
+**Is it safe?** Yes for the standard pattern: anything injected into a `Singleton`
+handler is *already* shared across that handler's concurrent requests, so your
+repos/services already had to be stateless/concurrency-safe. Sharing them across
+handlers too adds no new requirement.
+
+**If a dependency genuinely needs a fresh instance per resolve**, opt back in:
+
+```ts
+container.register(Types.Repos.Thing, { useClass: ThingRepo }, { scope: DI.Scope.Transient })
+```
+
+## Removed (breaking — but unused)
+
+These di-wise features were removed because **no service and no framework code**
+used them. If you somehow do, here's the replacement:
+
+| Removed | Replacement |
+|---|---|
+| `@Injectable` / `@Scoped` / `@AutoRegister` / `@Inject` / `@InjectAll` | Register explicitly: `container.register(token, { useClass }, { scope })` |
+| `injectAll` / `InjectAll` / `container.resolveAll` | Resolve a single token; model collections explicitly |
+| `injectBy` / `inject.by` / `Injector` token | `DI.lazy(token)` (cleaner circular-dependency break) |
+| multi-token `inject(a, b, …)` ("first registered wins") | Inject one concrete token |
+| `container.createChild()` (child/parent containers) | `createContainer()` for isolated graphs (e.g. tests) |
+| container middleware (`applyMiddleware`, `resolveAllSafe`) | — |
+| `Build(...)` / `Value(...)` builder tokens | `{ useFactory }` / `{ useValue }` |
+| `Type.inter` / `Type.union` | Separate tokens |
+
+## New
+
+- **`DI.lazy(token)`** — transparent proxy, resolves on first use; swap
+  `inject`→`lazy` on one edge of a cycle to break it. See the README
+  **"Lazy injection"** section.
+- **`warmup()`** — `app.start({ warmup: true })`, `app.warmup()`, or
+  `container.warmup()` eagerly resolve the graph at boot so failures surface
+  early. Opt-in. See the README **"Fail fast at boot"** section.
+
+---
+
 # Migrating to Sloth 0.2.0
 
 Sloth 0.2.0 makes endpoints and middleware **less boilerplate, more declarative**.

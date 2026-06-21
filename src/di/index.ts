@@ -1,18 +1,13 @@
 /**
- * Code created by and available at https://github.com/exuanbo/di-wise
- * Very minor modifications... just to facilitate the Sloth Application's context
+ * A small, opinionated DI container for Sloth.
+ *
+ * Originally a fork of https://github.com/exuanbo/di-wise, since slimmed down to
+ * the surface Sloth actually uses: token + scope, register/resolve, an `inject`
+ * default-parameter helper, and `lazy` for breaking circular dependencies.
  */
-export { createContainer } from "./container.ts";
-export type { Container, ContainerOptions } from "./container.ts";
-export { AutoRegister, Inject, Injectable, InjectAll, Scoped } from "./decorators.ts";
-export type { ClassDecorator, ClassFieldDecorator } from "./decorators.ts";
-export { inject, injectAll, injectBy, Injector } from "./inject.ts";
-export { applyMiddleware } from "./middleware.ts";
-export type { Middleware, MiddlewareComposer } from "./middleware.ts";
+export { type Container, createContainer, type RegistrationOptions } from "./container.ts";
+export { inject, lazy } from "./inject.ts";
 export type { ClassProvider, FactoryProvider, Provider, ValueProvider } from "./provider.ts";
-export { Build, Value } from "./registry.ts";
-export type { RegistrationOptions } from "./registry.ts";
 export { Scope } from "./scope.ts";
 export { Type } from "./token.ts";
 export type { Constructor, Token, TokenList } from "./token.ts";
-

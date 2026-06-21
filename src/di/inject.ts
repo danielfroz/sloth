@@ -1,180 +1,105 @@
-import { ensureInjectionContext, provideInjectionContext, useInjectionContext } from "./injection-context.ts";
-import { Build } from "./registry.ts";
-import type { Constructor, Token, TokenList, Type } from "./token.ts";
+import { currentContainer } from "./container.ts";
+import type { Constructor, Token } from "./token.ts";
 
-/**
- * Inject an instance of a class.
- */
-export function inject<Instance extends object>(Class: Constructor<Instance>): Instance;
-
-/**
- * Inject an instance of a token.
- */
-export function inject<Value>(token: Token<Value>): Value;
-
-/**
- * Inject an instance of a token, by checking each token in order until a registered one is found.
- */
-export function inject<Values extends unknown[]>(...tokens: TokenList<Values>): Values[number];
-
-export function inject<T>(...tokens: Token<T>[]): T {
-  const context = ensureInjectionContext(inject);
-  return context.container.resolve(...tokens);
-}
-
-export declare namespace inject {
-  export var by: typeof injectBy;
-}
-
-inject.by = injectBy;
-
-/**
- * Inject an instance of a class.
- *
- * @param thisArg - Used for resolving circular dependencies.
- */
-export function injectBy<Instance extends object>(thisArg: any, Class: Constructor<Instance>): Instance;
-
-/**
- * Inject an instance of a token.
- *
- * @param thisArg - Used for resolving circular dependencies.
- */
-export function injectBy<Value>(thisArg: any, token: Token<Value>): Value;
-
-/**
- * Inject an instance of a token, by checking each token in order until a registered one is found.
- *
- * @param thisArg - Used for resolving circular dependencies.
- */
-export function injectBy<Values extends unknown[]>(thisArg: any, ...tokens: TokenList<Values>): Values[number];
-
-export function injectBy<T>(thisArg: any, ...tokens: Token<T>[]): T {
-  const context = ensureInjectionContext(injectBy);
-  const resolution = context.resolution;
-
-  const currentFrame = resolution.stack.peek();
-  if (!currentFrame) {
-    return inject(...tokens);
+function requireContainer(fn: string) {
+  const container = currentContainer();
+  if (!container) {
+    throw new Error(`${fn}() can only be used within an injection context (during container.resolve)`);
   }
-
-  const currentRef = {current: thisArg};
-  const cleanup = resolution.dependents.set(currentFrame.provider, currentRef);
-  try {
-    return inject(...tokens);
-  }
-  finally {
-    cleanup();
-  }
+  return container;
 }
 
 /**
- * Inject instances of a class with all registered providers.
- */
-export function injectAll<Instance extends object>(Class: Constructor<Instance>): Instance[];
-
-/**
- * Inject instances of a token with all registered providers.
+ * Inject a dependency.
  *
- * The returned array will not contain `null` or `undefined` values.
- */
-export function injectAll<Value>(token: Token<Value>): NonNullable<Value>[];
-
-/**
- * Inject instances of a token with all registered providers, by checking each token in order until a registered one is found.
+ * Resolves immediately against the container currently driving resolution — so
+ * it must be called within a constructor (or factory) reached through
+ * `container.resolve`. The idiomatic use is a constructor default parameter:
  *
- * The returned array will not contain `null` or `undefined` values.
- */
-export function injectAll<Values extends unknown[]>(...tokens: TokenList<Values>): NonNullable<Values[number]>[];
-
-export function injectAll<T>(...tokens: Token<T>[]): NonNullable<T>[] {
-  const context = ensureInjectionContext(injectAll);
-  return context.container.resolveAll(...tokens);
-}
-
-/**
- * Injector API.
- */
-export interface Injector {
-  /**
-   * Inject an instance of a class.
-   */
-  inject<Instance extends object>(Class: Constructor<Instance>): Instance;
-
-  /**
-   * Inject an instance of a token.
-   */
-  inject<Value>(token: Token<Value>): Value;
-
-  /**
-   * Inject an instance of a token, by checking each token in order until a registered one is found.
-   */
-  inject<Values extends unknown[]>(...tokens: TokenList<Values>): Values[number];
-
-  /**
-   * Inject instances of a class with all registered providers.
-   */
-  injectAll<Instance extends object>(Class: Constructor<Instance>): Instance[];
-
-  /**
-   * Inject instances of a token with all registered providers.
-   *
-   * The returned array will not contain `null` or `undefined` values.
-   */
-  injectAll<Value>(token: Token<Value>): NonNullable<Value>[];
-
-  /**
-   * Inject instances of a token with all registered providers, by checking each token in order until a registered one is found.
-   *
-   * The returned array will not contain `null` or `undefined` values.
-   */
-  injectAll<Values extends unknown[]>(...tokens: TokenList<Values>): NonNullable<Values[number]>[];
-}
-
-/**
- * Injector token for dynamic injection.
- *
- * @example
  * ```ts
- * class Wizard {
- *   private injector = inject(Injector);
- *   private wand?: Wand;
- *
- *   getWand() {
- *     return (this.wand ??= this.injector.inject(Wand));
- *   }
+ * class GetHandler {
+ *   constructor(private readonly repo = inject(Types.Repos.Echo)) {}
  * }
+ * ```
  *
- * const wizard = container.resolve(Wizard);
- * wizard.getWand(); // => Wand
+ * Passing the dependency explicitly (`new GetHandler(mockRepo)`) skips injection
+ * entirely, which keeps handlers unit-testable without a container.
+ */
+export function inject<Instance extends object>(token: Constructor<Instance>): Instance;
+export function inject<Value>(token: Token<Value>): Value;
+export function inject<T>(token: Token<T>): T {
+  return requireContainer("inject").resolve(token);
+}
+
+/**
+ * Lazily inject a dependency.
+ *
+ * Unlike {@link inject}, which resolves immediately, `lazy` returns a transparent
+ * proxy and defers resolution until the first time a member is accessed. The
+ * instance is resolved at most once and memoized.
+ *
+ * The primary use case is **breaking circular dependencies**: because the
+ * dependency is not resolved during construction, the owning instance can finish
+ * constructing (and be cached as a singleton) before the cycle is closed.
+ * Resolution then happens on first use, by which point the other side of the
+ * cycle already exists. It also removes registration-order sensitivity — the
+ * token only needs to be registered before it is first *used*, not before it is
+ * injected.
+ *
+ * Method members are bound to the resolved instance, so private fields and
+ * `return this` continue to work as expected.
+ *
+ * ```ts
+ * class A {
+ *   constructor(private b = lazy(Types.B)) {} // breaks the A <-> B cycle
+ *   run() { return this.b.help(); }           // B resolved here, on first use
+ * }
+ * class B {
+ *   constructor(private a = inject(Types.A)) {}
+ *   help() { return "ok"; }
+ * }
  * ```
  */
-export const Injector: Type<Injector> = /*@__PURE__*/ Build(function Injector() {
-  const context = ensureInjectionContext(Injector);
-  const resolution = context.resolution;
-
-  const dependentFrame = resolution.stack.peek();
-  const dependentRef = dependentFrame && resolution.dependents.get(dependentFrame.provider);
-
-  function withCurrentContext<R>(fn: () => R) {
-    if (useInjectionContext()) {
-      return fn();
+export function lazy<Instance extends object>(token: Constructor<Instance>): Instance;
+export function lazy<Value extends object>(token: Token<Value>): Value;
+export function lazy<T extends object>(token: Token<T>): T {
+  const container = requireContainer("lazy");
+  let instance: T | undefined;
+  let resolved = false;
+  const resolve = (): T => {
+    if (!resolved) {
+      instance = container.resolve(token) as T;
+      resolved = true;
     }
-    const cleanups = [
-      provideInjectionContext(context),
-      dependentFrame && resolution.stack.push(dependentFrame.provider, dependentFrame),
-      dependentRef && resolution.dependents.set(dependentFrame.provider, dependentRef),
-    ];
-    try {
-      return fn();
-    }
-    finally {
-      cleanups.forEach((cleanup) => cleanup?.());
-    }
-  }
-
-  return {
-    inject: <T>(...tokens: Token<T>[]) => withCurrentContext(() => inject(...tokens)),
-    injectAll: <T>(...tokens: Token<T>[]) => withCurrentContext(() => injectAll(...tokens)),
+    return instance as T;
   };
-});
+  return new Proxy(Object.create(null) as T, {
+    get(_target, prop) {
+      const target = resolve() as Record<PropertyKey, unknown>;
+      const value = target[prop];
+      return typeof value == "function" ? value.bind(target) : value;
+    },
+    set(_target, prop, value) {
+      (resolve() as Record<PropertyKey, unknown>)[prop] = value;
+      return true;
+    },
+    has(_target, prop) {
+      return prop in (resolve() as object);
+    },
+    getPrototypeOf() {
+      return Reflect.getPrototypeOf(resolve() as object);
+    },
+    ownKeys() {
+      return Reflect.ownKeys(resolve() as object);
+    },
+    getOwnPropertyDescriptor(_target, prop) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(resolve() as object, prop);
+      if (descriptor) {
+        // The proxy target is an empty object, so any reported property must be
+        // configurable to satisfy the proxy invariants.
+        descriptor.configurable = true;
+      }
+      return descriptor;
+    },
+  });
+}

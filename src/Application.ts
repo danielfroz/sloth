@@ -150,7 +150,22 @@ export class Application {
   //   return new ServiceBuilder()
   // }
 
-  async start(args: Framework.Listen): Promise<void> {
+  /**
+   * Eagerly resolves every registered class/factory token once, so a missing or
+   * misconfigured dependency fails at boot instead of on the first request that
+   * touches it. Singletons are constructed and cached; transients are validated
+   * and discarded. Safe to use alongside {@link DI.lazy}.
+   *
+   * Called automatically by {@link Application.start} when `{ warmup: true }` is
+   * passed; can also be invoked manually after all registrations are in place.
+   */
+  warmup(): { resolved: number } {
+    const result = container.warmup()
+    Application.log.info({ msg: 'container warmup complete', resolved: result.resolved })
+    return result
+  }
+
+  async start(args: Framework.Listen & { warmup?: boolean }): Promise<void> {
     if(this.#handlers.length === 0) {
       throw new Errors.InitError('There is no handler registered! You must add Controllers or Middlewares prior to call start()')
     }
@@ -162,6 +177,9 @@ export class Application {
       else
         this.framework.createController(c as Controller)
     }
+    // opt-in: validate/pre-build the dependency graph before listening.
+    if(args?.warmup)
+      this.warmup()
     const port = args?.port ?? 80
     const hostname = args?.hostname ?? '0.0.0.0'
     const callback = args?.callback

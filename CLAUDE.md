@@ -61,12 +61,39 @@ resolution, request/response mapping, middleware, and error handling.
   Express); set state to pass data into handlers (e.g. `ctx.state.auth = token`).
   Apply globally via `app.Handlers.pipeline({ before, after })` or scope to one
   route via `@Route(path, { use: [...] })` / `Controller.add({ ..., middlewares })`.
-- **`src/di/`** — DI container (fork of di-wise, TC39 standard decorators).
-  Exposed via `import { DI } from '@danielfroz/sloth'`: `inject`, `injectAll`,
-  `injectBy`, `@Injectable`, `@Scoped`, `@AutoRegister`, `@Inject`, `@InjectAll`,
-  `Scope` (`Singleton` | `Transient`), `Type<T>(name)` tokens, `container`,
-  `createContainer`. Metadata is a `WeakMap` (`src/di/metadata.ts`), not
-  `Reflect`. `container` singleton lives in `src/Container.ts`.
+- **`src/di/`** — a small DI container (originally a di-wise fork, since slimmed
+  to the surface Sloth actually uses; 6 files). Exposed via `import { DI } from
+  '@danielfroz/sloth'`: `inject(token)`, `lazy(token)`, `Scope` (`Singleton` |
+  `Transient`), `Type<T>(name)` tokens, `container`, `createContainer`, and the
+  `Provider`/`Constructor`/`Token` types. `container` singleton lives in
+  `src/Container.ts`. The container is `register(token, provider, options?)` /
+  `resolve(token)` / `has(token)` / `warmup()`; one registration per token (no
+  multi-provider/`resolveAll`), synchronous resolution with an ambient
+  current-container + a `Set` for circular detection. **Default scope is
+  `Singleton`** when `register` omits `{ scope }` (matches `Controller`/`@Route`/
+  `ServiceBuilder` defaults). Use `{ scope: DI.Scope.Transient }` for the rare dep
+  that must be a fresh instance per resolve.
+  - **`DI.lazy(token)`** (`src/di/inject.ts`) — like `inject`, but returns a
+    transparent proxy and defers resolution to **first member access** (resolved
+    once, memoized; methods bound to the real instance so `#private` fields and
+    fluent `return this` work). Swap `inject`→`lazy` on **one edge** of a
+    circular dependency to break it: the owner finishes constructing (cached if a
+    singleton) before the cycle closes, so the back-edge sees the existing
+    instance instead of throwing `circular dependency detected`. Also removes
+    registration-order sensitivity (token need only be registered before first
+    *use*, not before injection). Drop-in: call sites keep `this.dep.method()`.
+  - **`container.warmup()`** / **`app.warmup()`** / **`app.start({ warmup: true
+    })`** — eagerly resolves every registered class/factory token once so a
+    missing/misconfigured dependency fails at **boot** instead of on the first
+    request. Singletons are constructed+cached, transients validated+discarded,
+    value providers skipped; failures aggregate into one `Errors.InitError`. Safe
+    with `lazy` (proxies don't recurse; each target token is validated on its
+    own). Opt-in — `start()` does not warm up unless asked.
+  - **Removed in 0.3.0** (were unused by every service and by the framework):
+    the `@Injectable`/`@Scoped`/`@AutoRegister`/`@Inject`/`@InjectAll`
+    decorators, `injectAll`/`injectBy`/`Injector`, `resolveAll`, multi-token
+    `inject(a, b, …)`, child/parent containers, container middleware, `Build`/
+    `Value` builder tokens, `autoRegister`, and `Type.inter`/`union`.
 - **`src/Errors.ts`** (exported as `Errors` namespace) — `ArgumentError(msg)`,
   `InitError(msg)`, `AuthError(code, message)`, `CodeError(code, msg)`,
   `ApiError(method, url, status, code, message)`. **`AuthError` takes 2 args**
@@ -98,13 +125,14 @@ src/
   mod.ts            # public barrel — all exports gated here
   Application.ts Controller.ts Route.ts Cqrs.ts Framework.ts Middleware.ts
   Errors.ts Api.ts Container.ts
-  di/               # DI container + decorators (di-wise fork)
+  di/               # small DI container (slimmed di-wise fork)
   oak/  express/    # framework adapters (own mod.ts each)
 test/               # framework unit tests (deno test)
 examples/
   oak/              # @Route discovery + pipeline reference (Oak) + smoke test
   express/          # @Route discovery + pipeline reference (Express 5) — same shape as oak
-MIGRATION.md        # 0.1.x → 0.2.0 upgrade guide (canonical, ships with package)
+MIGRATION.md        # upgrade guides (0.1.x → 0.2.0, 0.2.0 → 0.3.0), ships with package
+releases/           # per-release notes (one MD per tag) mirroring GitHub releases + index
 .claude/skills/     # community skills: sloth-migrate, sloth-scaffold (excluded from JSR publish)
 ```
 
