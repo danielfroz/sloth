@@ -1,5 +1,7 @@
 # Sloth — Project Guide for Claude
 
+@/opt/actt/Services/claude/CLAUDE.md
+
 > **Maintenance (read first):** This file is the living status doc for Sloth.
 > **Keep it updated** whenever the public API, `src/mod.ts` exports, directory
 > structure, `deno.json` (version/exports/imports), or core conventions change.
@@ -114,7 +116,16 @@ resolution, request/response mapping, middleware, and error handling.
   `InitError(msg)`, `AuthError(code, message)`, `CodeError(code, msg)`,
   `ApiError(method, url, status, code, message)`. **`AuthError` takes 2 args**
   (a 3-arg `description` form was deprecated/removed).
-- **`src/Api.ts`** — outbound HTTP API client helper.
+- **`src/Api.ts`** — outbound HTTP API client helper (`ApiFetch`). `get`/`post`
+  share a private `_request`; failures throw `Errors.ApiError`. A `fetch` rejection
+  is **classified** (`_networkError`, across Deno + Node/undici via name/`cause`/message)
+  into a gateway status + dotted code — `connection.refused`/`network.unreachable`→503,
+  `connection.timeout`→504, `connection.reset`/`connection.aborted`/`dns.notfound`/
+  `response.invalid`→502 — so a dead/slow upstream is distinguishable from a real
+  upstream 5xx (which keeps its own `res.status` + `json.error.code`). A non-JSON body
+  maps to `service` (non-2xx) or `response.invalid` (2xx). Opt-in `timeout?: number`
+  (ms) on init + per-request (`AbortSignal.timeout`); unset ⇒ no timeout. `throwOnError`
+  is still unused/dead config.
 
 ## Two ways to define endpoints
 
@@ -159,19 +170,17 @@ Example layout (`examples/*/src/`): `main.ts` (full bootstrap — `Providers.dis
 maps the response into a Result), `middlewares/`, `inits/` (`LogInit`, `ApiInit`
 `Initializer`s). Both `examples/oak` and `examples/express` carry the same set.
 
-## Commands
+## Publishing caveat
 
 ```sh
-sh ./compile.sh          # deno compile of mod / express / oak (type-check)
-sh ./test.sh             # deno test ./test (framework unit tests)
 deno publish --dry-run --allow-dirty   # REQUIRED before pushing — runs JSR's
                                        # slow-types + publish validation (the
                                        # workflow publishes on every push to main)
-cd examples/oak && sh ./dev.sh    # run example (deno run -A --watch)
-cd examples/oak && sh ./test.sh   # example tests
 ```
 
-Quick example type-check: `cd examples/oak && deno check src/main.ts`.
+The CI workflow publishes to JSR on every push to `main`, so run the dry-run
+first — it catches slow-types violations (e.g. an exported function with an
+inferred return type) that would otherwise fail the publish.
 
 ## Conventions
 

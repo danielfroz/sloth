@@ -5,6 +5,7 @@ GitHub release for that tag.
 
 | Version | Notes | Highlights |
 |---|---|---|
+| [0.3.2](./0.3.2.md) | 2026-07-10 | `ApiFetch` granular network-error classification (`connection.refused`/`timeout`/`reset`/`dns` → 502/503/504), response-parse errors, opt-in request `timeout` |
 | [0.3.1](./0.3.1.md) | 2026-06-21 | Docs/maintenance patch (JSR explicit-return-type convention + required `deno publish --dry-run`); no API changes |
 | [0.3.0](./0.3.0.md) | 2026-06-21 | Lean DI, lazy-by-default `inject`, `warmup()` on by default, `@Repository`/`@Service` + `Initializer` bootstrap, Singleton default scope |
 | [0.2.0](./0.2.0.md) | 2026-06-21 | `@Route` discovery, `pipeline()`, per-route middleware, Express 5 |
