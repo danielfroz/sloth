@@ -51,7 +51,7 @@ export class OakFramework implements Framework<OakApplication> {
             for(const [key, value] of formData.entries()) {
               if(value instanceof File) {
                 const buffer = await value.arrayBuffer()
-                const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+                const base64 = this.toBase64(new Uint8Array(buffer))
                 obj[key] = {
                   name: value.name,
                   type: value.type,
@@ -187,6 +187,22 @@ export class OakFramework implements Framework<OakApplication> {
       this.application.use(router.routes())
       Application.log.debug({ msg: `registered @Controller ${url} -> ${r.route.handler.name}` })
     }
+  }
+
+  /**
+   * Encodes bytes to base64 without spreading the whole array into
+   * String.fromCharCode(...) — a spread of a large Uint8Array overflows the
+   * call stack ("Maximum call stack size exceeded") once it exceeds the JS
+   * engine's argument-count limit, which broke large multipart uploads. Encode
+   * in fixed chunks so every fromCharCode call stays well under that limit.
+   */
+  private toBase64(bytes: Uint8Array): string {
+    const CHUNK = 0x8000
+    let binary = ''
+    for(let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+    }
+    return btoa(binary)
   }
 
   /**
