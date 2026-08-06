@@ -9,7 +9,7 @@ import {
   MiddlewareCtx,
   container
 } from "@danielfroz/sloth";
-import { Application as OakApplication, Context, Next, Router } from "jsr:@oak/oak@17.2.0";
+import { Context, Next, Application as OakApplication, Router } from "jsr:@oak/oak@17.2.0";
 
 export class OakFramework implements Framework<OakApplication> {
   private readonly application = new OakApplication()
@@ -75,9 +75,11 @@ export class OakFramework implements Framework<OakApplication> {
           rmeta.sid = req.sid
 
           // If we have ctx.state defined by any Middleware, we add such information to the Command or Query
+          // Middleware state is gateway/auth-asserted identity — it MUST NOT be overridable by
+          // the request body. A client posting `author`/`apikey` would otherwise impersonate.
           const cmdquery = ctx.state != null ? {
-            ...ctx.state,
             ...req,
+            ...ctx.state,
           }: req
 
           const res = await h.handle(cmdquery) as BaseResult

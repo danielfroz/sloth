@@ -69,9 +69,11 @@ export class ExpressFramework implements Framework<express.Application> {
           rmeta.sid = req.sid
 
           // If Midlleware has defined res.locals, then we pass this down to the Command or Query
+          // Middleware state is gateway/auth-asserted identity — it MUST NOT be overridable by
+          // the request body. A client posting `author`/`apikey` would otherwise impersonate.
           const cmdreq = pres.locals != null ? {
-            ...pres.locals,
             ...req,
+            ...pres.locals,
           }: req
 
           const res = await h.handle(cmdreq)
